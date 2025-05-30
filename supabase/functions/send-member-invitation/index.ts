@@ -22,12 +22,18 @@ serve(async (req) => {
   }
 
   try {
+    // Crear cliente de Supabase con el token de autorización del request
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      throw new Error('No se proporcionó token de autorización');
+    }
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       {
         global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
+          headers: { Authorization: authHeader },
         },
       }
     );
@@ -35,19 +41,29 @@ serve(async (req) => {
     // Verificar autenticación
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
+      console.error('Auth error:', authError);
       throw new Error('No autorizado');
     }
 
+    console.log('Authenticated user:', user.id);
+
     // Obtener perfil del usuario actual
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('role, organization_id, first_name, last_name')
       .eq('id', user.id)
       .single();
 
+    if (profileError) {
+      console.error('Profile error:', profileError);
+      throw new Error('Error al obtener el perfil del usuario');
+    }
+
     if (!profile || !['admin', 'superadmin'].includes(profile.role)) {
       throw new Error('No tienes permisos para invitar miembros');
     }
+
+    console.log('User profile:', profile);
 
     const { email, firstName, lastName }: InvitationRequest = await req.json();
 
@@ -55,11 +71,16 @@ serve(async (req) => {
     const token = crypto.randomUUID();
 
     // Verificar que el email no esté ya registrado
-    const { data: existingUser } = await supabase
+    const { data: existingUser, error: existingUserError } = await supabase
       .from('profiles')
       .select('id')
       .eq('email', email)
-      .single();
+      .maybeSingle();
+
+    if (existingUserError && existingUserError.code !== 'PGRST116') {
+      console.error('Error checking existing user:', existingUserError);
+      throw new Error('Error al verificar el usuario existente');
+    }
 
     if (existingUser) {
       throw new Error('Este email ya está registrado en el sistema');
@@ -81,6 +102,8 @@ serve(async (req) => {
       console.error('Error creating invitation:', inviteError);
       throw new Error('Error al crear la invitación');
     }
+
+    console.log('Invitation created successfully');
 
     // Obtener nombre de la organización
     const { data: organization } = await supabase
@@ -130,6 +153,8 @@ serve(async (req) => {
       console.error('Error sending email:', emailError);
       throw new Error('Error al enviar el email de invitación');
     }
+
+    console.log('Email sent successfully');
 
     return new Response(
       JSON.stringify({ success: true, message: 'Invitación enviada correctamente' }),
