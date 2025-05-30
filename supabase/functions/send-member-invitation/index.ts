@@ -8,8 +8,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
-
 interface InvitationRequest {
   email: string;
   firstName: string;
@@ -17,19 +15,19 @@ interface InvitationRequest {
 }
 
 serve(async (req) => {
+  console.log('=== Member invitation function started ===');
+  
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    console.log('=== Starting member invitation process ===');
-    
-    // Obtener el token de autorización
+    // Get authorization header
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      console.error('No authorization header provided');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.error('Missing or invalid authorization header');
       return new Response(
-        JSON.stringify({ error: 'No se proporcionó token de autorización' }),
+        JSON.stringify({ error: 'Token de autorización requerido' }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 401,
@@ -37,25 +35,24 @@ serve(async (req) => {
       );
     }
 
-    console.log('Authorization header received, length:', authHeader.length);
+    console.log('Authorization header found');
 
-    // Crear cliente admin para operaciones que requieren bypass de RLS
-    const adminSupabase = createClient(
+    // Create Supabase client with service role for admin operations
+    const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Extraer el JWT token del header
+    // Extract JWT token
     const jwt = authHeader.replace('Bearer ', '');
-    console.log('JWT token extracted, length:', jwt.length);
-
-    // Verificar el JWT usando el cliente admin
-    const { data: { user }, error: authError } = await adminSupabase.auth.getUser(jwt);
     
-    if (authError) {
-      console.error('Auth error:', authError.message);
+    // Verify user authentication
+    const { data: { user }, error: authError } = await supabase.auth.getUser(jwt);
+    
+    if (authError || !user) {
+      console.error('Authentication failed:', authError?.message);
       return new Response(
-        JSON.stringify({ error: 'Token de autorización inválido: ' + authError.message }),
+        JSON.stringify({ error: 'Token de autorización inválido' }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 401,
@@ -63,30 +60,19 @@ serve(async (req) => {
       );
     }
 
-    if (!user) {
-      console.error('No user found in token');
-      return new Response(
-        JSON.stringify({ error: 'Usuario no encontrado en el token' }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 401,
-        }
-      );
-    }
+    console.log('User authenticated:', user.id);
 
-    console.log('Authenticated user:', user.id, user.email);
-
-    // Obtener perfil del usuario actual usando el cliente admin
-    const { data: profile, error: profileError } = await adminSupabase
+    // Get user profile
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('role, organization_id, first_name, last_name')
       .eq('id', user.id)
       .single();
 
-    if (profileError) {
-      console.error('Profile error:', profileError.message);
+    if (profileError || !profile) {
+      console.error('Profile error:', profileError?.message);
       return new Response(
-        JSON.stringify({ error: 'Error al obtener el perfil del usuario: ' + profileError.message }),
+        JSON.stringify({ error: 'Error al obtener el perfil del usuario' }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 400,
@@ -94,8 +80,11 @@ serve(async (req) => {
       );
     }
 
-    if (!profile || !['admin', 'superadmin'].includes(profile.role)) {
-      console.error('User does not have admin permissions:', profile?.role);
+    console.log('Profile found:', profile.role, 'org:', profile.organization_id);
+
+    // Check admin permissions
+    if (!['admin', 'superadmin'].includes(profile.role)) {
+      console.error('Insufficient permissions:', profile.role);
       return new Response(
         JSON.stringify({ error: 'No tienes permisos para invitar miembros' }),
         {
@@ -105,13 +94,8 @@ serve(async (req) => {
       );
     }
 
-    console.log('User profile verified:', profile.role, 'org:', profile.organization_id);
-
-    // Obtener datos del request
-    const requestBody = await req.json();
-    console.log('Request body received:', requestBody);
-    
-    const { email, firstName, lastName }: InvitationRequest = requestBody;
+    // Parse request body
+    const { email, firstName, lastName }: InvitationRequest = await req.json();
 
     if (!email || !firstName || !lastName) {
       return new Response(
@@ -123,30 +107,17 @@ serve(async (req) => {
       );
     }
 
-    // Generar token único
-    const token = crypto.randomUUID();
-    console.log('Generated invitation token:', token);
+    console.log('Invitation data:', { email, firstName, lastName });
 
-    // Verificar que el email no esté ya registrado
-    const { data: existingUser, error: existingUserError } = await adminSupabase
+    // Check if user already exists
+    const { data: existingUser } = await supabase
       .from('profiles')
       .select('id')
       .eq('email', email)
       .maybeSingle();
 
-    if (existingUserError && existingUserError.code !== 'PGRST116') {
-      console.error('Error checking existing user:', existingUserError.message);
-      return new Response(
-        JSON.stringify({ error: 'Error al verificar el usuario existente' }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 400,
-        }
-      );
-    }
-
     if (existingUser) {
-      console.log('User already exists with email:', email);
+      console.log('User already exists');
       return new Response(
         JSON.stringify({ error: 'Este email ya está registrado en el sistema' }),
         {
@@ -156,10 +127,12 @@ serve(async (req) => {
       );
     }
 
-    console.log('Creating invitation for email:', email);
+    // Generate invitation token
+    const token = crypto.randomUUID();
+    console.log('Generated token:', token);
 
-    // Crear invitación
-    const { error: inviteError } = await adminSupabase
+    // Create invitation
+    const { error: inviteError } = await supabase
       .from('member_invitations')
       .insert({
         organization_id: profile.organization_id,
@@ -171,7 +144,7 @@ serve(async (req) => {
       });
 
     if (inviteError) {
-      console.error('Error creating invitation:', inviteError.message);
+      console.error('Error creating invitation:', inviteError);
       return new Response(
         JSON.stringify({ error: 'Error al crear la invitación: ' + inviteError.message }),
         {
@@ -183,18 +156,19 @@ serve(async (req) => {
 
     console.log('Invitation created successfully');
 
-    // Obtener nombre de la organización
-    const { data: organization } = await adminSupabase
+    // Get organization name
+    const { data: organization } = await supabase
       .from('organizations')
       .select('name')
       .eq('id', profile.organization_id)
       .single();
 
+    // Send email using Resend
+    const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
     const inviteUrl = `${req.headers.get('origin')}/invite/${token}`;
 
     console.log('Sending email to:', email);
 
-    // Enviar email
     const { error: emailError } = await resend.emails.send({
       from: 'Skytide CRM <noreply@resend.dev>',
       to: [email],
@@ -232,7 +206,7 @@ serve(async (req) => {
     if (emailError) {
       console.error('Error sending email:', emailError);
       return new Response(
-        JSON.stringify({ error: 'Error al enviar el email de invitación: ' + emailError.message }),
+        JSON.stringify({ error: 'Error al enviar el email: ' + emailError.message }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 400,
@@ -241,7 +215,7 @@ serve(async (req) => {
     }
 
     console.log('Email sent successfully');
-    console.log('=== Member invitation process completed successfully ===');
+    console.log('=== Member invitation completed successfully ===');
 
     return new Response(
       JSON.stringify({ success: true, message: 'Invitación enviada correctamente' }),
@@ -252,7 +226,7 @@ serve(async (req) => {
     );
 
   } catch (error: any) {
-    console.error('Unexpected error in send-member-invitation:', error);
+    console.error('Unexpected error:', error);
     return new Response(
       JSON.stringify({ error: 'Error interno del servidor: ' + error.message }),
       {
