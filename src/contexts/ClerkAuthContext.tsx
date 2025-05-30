@@ -16,17 +16,12 @@ const ClerkAuthContext = createContext<ClerkAuthContextType | undefined>(undefin
 
 export function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
   const { user, isLoaded: userLoaded } = useUser();
-  const { organization, isLoaded: orgLoaded } = useOrganization();
+  const { organization, membership, isLoaded: orgLoaded } = useOrganization();
   const { signOut: clerkSignOut } = useClerkAuth();
 
   // Check if user has admin role in the organization
-  const isAdmin = organization?.memberships?.some(
-    membership => membership.role === 'admin' || membership.role === 'superadmin'
-  ) || false;
-
-  const isSuperAdmin = organization?.memberships?.some(
-    membership => membership.role === 'superadmin'
-  ) || false;
+  const isAdmin = membership?.role === 'admin' || membership?.role === 'org:admin' || false;
+  const isSuperAdmin = membership?.role === 'superadmin' || membership?.role === 'org:admin' || false;
 
   // Create a profile object compatible with the existing code
   const profile = user ? {

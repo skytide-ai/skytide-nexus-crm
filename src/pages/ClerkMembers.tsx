@@ -28,7 +28,7 @@ export default function ClerkMembers() {
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
   const [inviteForm, setInviteForm] = useState({
     email: '',
-    role: 'member' as 'admin' | 'member'
+    role: 'org:member' as 'org:admin' | 'org:member'
   });
 
   const handleInviteSubmit = async (e: React.FormEvent) => {
@@ -37,7 +37,7 @@ export default function ClerkMembers() {
     if (!organization) return;
 
     try {
-      await organization.inviteUser({
+      await organization.inviteMember({
         emailAddress: inviteForm.email,
         role: inviteForm.role,
       });
@@ -47,7 +47,7 @@ export default function ClerkMembers() {
         description: "La invitación ha sido enviada correctamente por email.",
       });
 
-      setInviteForm({ email: '', role: 'member' });
+      setInviteForm({ email: '', role: 'org:member' });
       setIsInviteDialogOpen(false);
     } catch (error: any) {
       toast({
@@ -58,7 +58,7 @@ export default function ClerkMembers() {
     }
   };
 
-  const handleUpdateMemberRole = async (userId: string, role: 'admin' | 'member') => {
+  const handleUpdateMemberRole = async (userId: string, role: 'org:admin' | 'org:member') => {
     if (!organization) return;
 
     try {
@@ -154,11 +154,11 @@ export default function ClerkMembers() {
                 <select
                   id="role"
                   value={inviteForm.role}
-                  onChange={(e) => setInviteForm({...inviteForm, role: e.target.value as 'admin' | 'member'})}
+                  onChange={(e) => setInviteForm({...inviteForm, role: e.target.value as 'org:admin' | 'org:member'})}
                   className="w-full p-2 border border-gray-300 rounded-md"
                 >
-                  <option value="member">Miembro</option>
-                  <option value="admin">Administrador</option>
+                  <option value="org:member">Miembro</option>
+                  <option value="org:admin">Administrador</option>
                 </select>
               </div>
               <div className="flex justify-end gap-2">
@@ -263,9 +263,9 @@ export default function ClerkMembers() {
                     <TableCell>{membership.publicUserData.identifier}</TableCell>
                     <TableCell>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        membership.role === 'admin' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                        membership.role === 'org:admin' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
                       }`}>
-                        {membership.role === 'admin' ? 'Administrador' : 'Miembro'}
+                        {membership.role === 'org:admin' ? 'Administrador' : 'Miembro'}
                       </span>
                     </TableCell>
                     <TableCell>
@@ -275,7 +275,7 @@ export default function ClerkMembers() {
                           size="sm"
                           onClick={() => handleUpdateMemberRole(
                             membership.publicUserData.userId, 
-                            membership.role === 'admin' ? 'member' : 'admin'
+                            membership.role === 'org:admin' ? 'org:member' : 'org:admin'
                           )}
                         >
                           <Edit className="h-4 w-4" />
