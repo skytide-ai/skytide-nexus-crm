@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -84,15 +83,37 @@ export default function Members() {
   // Mutación para enviar invitación
   const inviteMutation = useMutation({
     mutationFn: async (inviteData: typeof inviteForm) => {
+      console.log('Enviando invitación...', inviteData);
+      
+      // Obtener el token de sesión actual
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        console.error('Error obteniendo sesión:', sessionError);
+        throw new Error('No hay sesión activa');
+      }
+
+      console.log('Token obtenido, llamando función...');
+
       const { data, error } = await supabase.functions.invoke('send-member-invitation', {
         body: {
           email: inviteData.email,
           firstName: inviteData.firstName,
           lastName: inviteData.lastName
+        },
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
         }
       });
 
-      if (error) throw error;
+      console.log('Respuesta de función:', { data, error });
+
+      if (error) {
+        console.error('Error en función:', error);
+        throw error;
+      }
+      
       return data;
     },
     onSuccess: () => {
@@ -105,6 +126,7 @@ export default function Members() {
       queryClient.invalidateQueries({ queryKey: ['invitations'] });
     },
     onError: (error: any) => {
+      console.error('Error completo:', error);
       toast({
         title: "Error",
         description: error.message || "Error al enviar la invitación",
