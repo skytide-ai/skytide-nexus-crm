@@ -22,27 +22,44 @@ serve(async (req) => {
   }
 
   try {
-    // Crear cliente de Supabase con el token de autorización del request
+    // Obtener el token de autorización
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
+      console.error('No authorization header provided');
       throw new Error('No se proporcionó token de autorización');
     }
 
+    console.log('Authorization header received');
+
+    // Crear cliente de Supabase con la configuración correcta
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       {
         global: {
-          headers: { Authorization: authHeader },
+          headers: { 
+            Authorization: authHeader,
+            apikey: Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+          },
+        },
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
         },
       }
     );
 
-    // Verificar autenticación
+    // Verificar autenticación usando el token JWT directamente
     const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
+    
+    if (authError) {
       console.error('Auth error:', authError);
-      throw new Error('No autorizado');
+      throw new Error('Token de autorización inválido');
+    }
+
+    if (!user) {
+      console.error('No user found in token');
+      throw new Error('Usuario no encontrado en el token');
     }
 
     console.log('Authenticated user:', user.id);
@@ -60,10 +77,11 @@ serve(async (req) => {
     }
 
     if (!profile || !['admin', 'superadmin'].includes(profile.role)) {
+      console.error('User does not have admin permissions:', profile?.role);
       throw new Error('No tienes permisos para invitar miembros');
     }
 
-    console.log('User profile:', profile);
+    console.log('User profile verified:', profile);
 
     const { email, firstName, lastName }: InvitationRequest = await req.json();
 
