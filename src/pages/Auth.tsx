@@ -61,7 +61,8 @@ export default function Auth() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!signupForm.email || !signupForm.password || !signupForm.firstName || !signupForm.lastName) {
+    // Validate required fields
+    if (!signupForm.email || !signupForm.password || !signupForm.firstName || !signupForm.lastName || !signupForm.organizationName) {
       toast({
         title: "Error",
         description: "Por favor completa todos los campos obligatorios",
@@ -70,6 +71,7 @@ export default function Auth() {
       return;
     }
 
+    // Validate password confirmation
     if (signupForm.password !== signupForm.confirmPassword) {
       toast({
         title: "Error",
@@ -79,6 +81,7 @@ export default function Auth() {
       return;
     }
 
+    // Validate password length
     if (signupForm.password.length < 6) {
       toast({
         title: "Error",
@@ -88,6 +91,7 @@ export default function Auth() {
       return;
     }
 
+    // Validate organization name
     if (!signupForm.organizationName.trim()) {
       toast({
         title: "Error",
@@ -104,7 +108,7 @@ export default function Auth() {
       signupForm.password,
       signupForm.firstName,
       signupForm.lastName,
-      signupForm.organizationName
+      signupForm.organizationName.trim()
     );
     
     if (!error) {
@@ -217,6 +221,18 @@ export default function Auth() {
 
               <TabsContent value="signup">
                 <form onSubmit={handleSignup} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="organizationName">Nombre de la Organización *</Label>
+                    <Input
+                      id="organizationName"
+                      value={signupForm.organizationName}
+                      onChange={(e) => setSignupForm({...signupForm, organizationName: e.target.value})}
+                      required
+                      placeholder="Mi Empresa"
+                      autoComplete="organization"
+                    />
+                  </div>
+
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="firstName">Nombre *</Label>
@@ -239,18 +255,6 @@ export default function Auth() {
                         autoComplete="family-name"
                       />
                     </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="organizationName">Nombre de la Organización *</Label>
-                    <Input
-                      id="organizationName"
-                      value={signupForm.organizationName}
-                      onChange={(e) => setSignupForm({...signupForm, organizationName: e.target.value})}
-                      required
-                      placeholder="Mi Empresa"
-                      autoComplete="organization"
-                    />
                   </div>
 
                   <div className="space-y-2">
