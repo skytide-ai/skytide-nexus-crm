@@ -1,9 +1,25 @@
 
 import React from 'react';
-import { SignIn, SignUp } from '@clerk/clerk-react';
+import { SignIn, SignUp, useClerk } from '@clerk/clerk-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function ClerkAuth() {
+  const clerk = useClerk();
+  
+  console.log("Clerk instance:", clerk);
+  console.log("Clerk loaded:", clerk?.loaded);
+
+  if (!clerk?.loaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Cargando autenticación...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
@@ -35,16 +51,22 @@ export default function ClerkAuth() {
                 <h3 className="text-lg font-semibold text-gray-900">Iniciar Sesión</h3>
                 <p className="text-sm text-gray-600">Ingresa con tu cuenta existente</p>
               </div>
-              <SignIn 
-                fallbackRedirectUrl="/"
-                appearance={{
-                  elements: {
-                    formButtonPrimary: 'bg-blue-600 hover:bg-blue-700',
-                    card: 'shadow-none border-0',
-                    rootBox: 'w-full'
-                  }
-                }}
-              />
+              <div className="w-full">
+                <SignIn 
+                  path="/auth"
+                  routing="path"
+                  signUpUrl="/auth"
+                  redirectUrl="/"
+                  appearance={{
+                    elements: {
+                      formButtonPrimary: 'bg-blue-600 hover:bg-blue-700 text-white',
+                      card: 'shadow-none border-0 bg-transparent',
+                      rootBox: 'w-full',
+                      form: 'space-y-4'
+                    }
+                  }}
+                />
+              </div>
             </TabsContent>
 
             <TabsContent value="signup" className="space-y-4">
@@ -52,16 +74,22 @@ export default function ClerkAuth() {
                 <h3 className="text-lg font-semibold text-gray-900">Crear Cuenta</h3>
                 <p className="text-sm text-gray-600">Crea una nueva cuenta y organización</p>
               </div>
-              <SignUp 
-                fallbackRedirectUrl="/"
-                appearance={{
-                  elements: {
-                    formButtonPrimary: 'bg-blue-600 hover:bg-blue-700',
-                    card: 'shadow-none border-0',
-                    rootBox: 'w-full'
-                  }
-                }}
-              />
+              <div className="w-full">
+                <SignUp 
+                  path="/auth"
+                  routing="path"
+                  signInUrl="/auth"
+                  redirectUrl="/"
+                  appearance={{
+                    elements: {
+                      formButtonPrimary: 'bg-blue-600 hover:bg-blue-700 text-white',
+                      card: 'shadow-none border-0 bg-transparent',
+                      rootBox: 'w-full',
+                      form: 'space-y-4'
+                    }
+                  }}
+                />
+              </div>
             </TabsContent>
           </Tabs>
         </div>
