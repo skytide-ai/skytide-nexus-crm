@@ -20,8 +20,13 @@ export function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
   const { signOut: clerkSignOut } = useClerkAuth();
 
   // Check if user has admin role in the organization
-  const isAdmin = membership?.role === 'admin' || membership?.role === 'org:admin' || false;
-  const isSuperAdmin = membership?.role === 'superadmin' || membership?.role === 'org:admin' || false;
+  // En Clerk, cuando creas una organización, automáticamente te conviertes en "org:admin"
+  const isAdmin = membership?.role === 'org:admin' || membership?.role === 'admin' || false;
+  const isSuperAdmin = membership?.role === 'org:admin' || membership?.role === 'superadmin' || false;
+
+  console.log("Membership role:", membership?.role);
+  console.log("Is admin:", isAdmin);
+  console.log("Is super admin:", isSuperAdmin);
 
   // Create a profile object compatible with the existing code
   const profile = user ? {

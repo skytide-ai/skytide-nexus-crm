@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Building2, ArrowRight } from 'lucide-react';
 
 export default function CreateOrganization() {
-  const { createOrganization } = useOrganizationList();
+  const { createOrganization, setActive } = useOrganizationList();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -31,15 +31,21 @@ export default function CreateOrganization() {
     setIsLoading(true);
 
     try {
+      // Crear la organización - el usuario se convierte automáticamente en admin
       const organization = await createOrganization({
         name: orgName,
       });
 
       console.log("Organization created:", organization);
 
+      // Activar la organización recién creada
+      if (setActive && organization) {
+        await setActive({ organization: organization.id });
+      }
+
       toast({
         title: "¡Organización creada!",
-        description: `${orgName} ha sido creada exitosamente`,
+        description: `${orgName} ha sido creada exitosamente. Ahora eres el administrador.`,
       });
 
       // Redirect to dashboard
@@ -71,7 +77,7 @@ export default function CreateOrganization() {
           </div>
           <h2 className="text-3xl font-bold text-gray-900">Crear Organización</h2>
           <p className="mt-2 text-sm text-gray-600">
-            Configura tu organización para comenzar a usar Skytide CRM
+            Configura tu organización para comenzar a usar Skytide CRM. Serás el administrador principal.
           </p>
         </div>
 
@@ -79,7 +85,7 @@ export default function CreateOrganization() {
           <CardHeader>
             <CardTitle>Información de la Organización</CardTitle>
             <CardDescription>
-              Ingresa el nombre de tu empresa u organización
+              Ingresa el nombre de tu empresa u organización. Te convertirás automáticamente en el administrador.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -108,7 +114,7 @@ export default function CreateOrganization() {
                   </>
                 ) : (
                   <>
-                    Crear Organización
+                    Crear Organización como Administrador
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </>
                 )}
