@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
@@ -24,6 +25,7 @@ export default function Auth() {
   const { signIn, signUp, user, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { toast } = useToast();
 
   const from = location.state?.from?.pathname || '/';
 
@@ -35,6 +37,16 @@ export default function Auth() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!loginForm.email || !loginForm.password) {
+      toast({
+        title: "Error",
+        description: "Por favor completa todos los campos",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     const { error } = await signIn(loginForm.email, loginForm.password);
@@ -49,13 +61,39 @@ export default function Auth() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!signupForm.email || !signupForm.password || !signupForm.firstName || !signupForm.lastName) {
+      toast({
+        title: "Error",
+        description: "Por favor completa todos los campos obligatorios",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (signupForm.password !== signupForm.confirmPassword) {
-      alert('Las contraseñas no coinciden');
+      toast({
+        title: "Error",
+        description: "Las contraseñas no coinciden",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (signupForm.password.length < 6) {
+      toast({
+        title: "Error",
+        description: "La contraseña debe tener al menos 6 caracteres",
+        variant: "destructive",
+      });
       return;
     }
 
     if (!signupForm.organizationName.trim()) {
-      alert('El nombre de la organización es requerido');
+      toast({
+        title: "Error",
+        description: "El nombre de la organización es requerido",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -68,6 +106,22 @@ export default function Auth() {
       signupForm.lastName,
       signupForm.organizationName
     );
+    
+    if (!error) {
+      toast({
+        title: "¡Registro exitoso!",
+        description: "Tu cuenta ha sido creada. Puedes iniciar sesión ahora.",
+      });
+      // Reset form
+      setSignupForm({
+        email: '',
+        password: '',
+        confirmPassword: '',
+        firstName: '',
+        lastName: '',
+        organizationName: ''
+      });
+    }
     
     setIsLoading(false);
   };
@@ -138,6 +192,7 @@ export default function Auth() {
                       onChange={(e) => setLoginForm({...loginForm, email: e.target.value})}
                       required
                       placeholder="tu@email.com"
+                      autoComplete="email"
                     />
                   </div>
                   
@@ -149,6 +204,7 @@ export default function Auth() {
                       value={loginForm.password}
                       onChange={(e) => setLoginForm({...loginForm, password: e.target.value})}
                       required
+                      autoComplete="current-password"
                     />
                   </div>
 
@@ -163,39 +219,42 @@ export default function Auth() {
                 <form onSubmit={handleSignup} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="firstName">Nombre</Label>
+                      <Label htmlFor="firstName">Nombre *</Label>
                       <Input
                         id="firstName"
                         value={signupForm.firstName}
                         onChange={(e) => setSignupForm({...signupForm, firstName: e.target.value})}
                         required
+                        autoComplete="given-name"
                       />
                     </div>
                     
                     <div className="space-y-2">
-                      <Label htmlFor="lastName">Apellido</Label>
+                      <Label htmlFor="lastName">Apellido *</Label>
                       <Input
                         id="lastName"
                         value={signupForm.lastName}
                         onChange={(e) => setSignupForm({...signupForm, lastName: e.target.value})}
                         required
+                        autoComplete="family-name"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="organizationName">Nombre de la Organización</Label>
+                    <Label htmlFor="organizationName">Nombre de la Organización *</Label>
                     <Input
                       id="organizationName"
                       value={signupForm.organizationName}
                       onChange={(e) => setSignupForm({...signupForm, organizationName: e.target.value})}
                       required
                       placeholder="Mi Empresa"
+                      autoComplete="organization"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="signupEmail">Email</Label>
+                    <Label htmlFor="signupEmail">Email *</Label>
                     <Input
                       id="signupEmail"
                       type="email"
@@ -203,11 +262,12 @@ export default function Auth() {
                       onChange={(e) => setSignupForm({...signupForm, email: e.target.value})}
                       required
                       placeholder="admin@miempresa.com"
+                      autoComplete="email"
                     />
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="signupPassword">Contraseña</Label>
+                    <Label htmlFor="signupPassword">Contraseña *</Label>
                     <Input
                       id="signupPassword"
                       type="password"
@@ -215,11 +275,12 @@ export default function Auth() {
                       onChange={(e) => setSignupForm({...signupForm, password: e.target.value})}
                       required
                       minLength={6}
+                      autoComplete="new-password"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Confirmar Contraseña</Label>
+                    <Label htmlFor="confirmPassword">Confirmar Contraseña *</Label>
                     <Input
                       id="confirmPassword"
                       type="password"
@@ -227,6 +288,7 @@ export default function Auth() {
                       onChange={(e) => setSignupForm({...signupForm, confirmPassword: e.target.value})}
                       required
                       minLength={6}
+                      autoComplete="new-password"
                     />
                   </div>
 
