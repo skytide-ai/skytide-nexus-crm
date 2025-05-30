@@ -4,13 +4,12 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "./contexts/AuthContext";
+import { ClerkAuthProvider } from "./contexts/ClerkAuthContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Layout } from "./components/Layout";
 import { Dashboard } from "./components/Dashboard";
-import Auth from "./pages/Auth";
-import Members from "./pages/Members";
-import InviteAccept from "./pages/InviteAccept";
+import ClerkAuth from "./pages/ClerkAuth";
+import ClerkMembers from "./pages/ClerkMembers";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -21,10 +20,9 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <AuthProvider>
+        <ClerkAuthProvider>
           <Routes>
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/invite/:token" element={<InviteAccept />} />
+            <Route path="/auth" element={<ClerkAuth />} />
             <Route path="/" element={
               <ProtectedRoute>
                 <Layout>
@@ -63,7 +61,7 @@ const App = () => (
             <Route path="/members" element={
               <ProtectedRoute requiredRole="admin">
                 <Layout>
-                  <Members />
+                  <ClerkMembers />
                 </Layout>
               </ProtectedRoute>
             } />
@@ -83,7 +81,7 @@ const App = () => (
             } />
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </AuthProvider>
+        </ClerkAuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

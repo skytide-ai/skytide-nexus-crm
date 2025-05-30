@@ -1,26 +1,14 @@
 
-import { Bell, Search, User, ChevronDown, LogOut } from "lucide-react";
+import { Bell, Search, User, ChevronDown } from "lucide-react";
+import { UserButton } from '@clerk/clerk-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/ClerkAuthContext";
 
 export function Header() {
-  const { profile, organization, signOut, isSuperAdmin, isAdmin } = useAuth();
-
-  const getUserInitials = () => {
-    if (!profile) return 'U';
-    return `${profile.first_name?.[0] || ''}${profile.last_name?.[0] || ''}`.toUpperCase();
-  };
+  const { profile, organization, isSuperAdmin, isAdmin } = useAuth();
 
   const getRoleBadge = () => {
     if (!profile) return null;
@@ -66,58 +54,32 @@ export function Header() {
             </span>
           </Button>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="flex items-center gap-2 hover:bg-gray-100">
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback className="bg-primary text-white">
-                    {getUserInitials()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="text-left">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-gray-900">
-                      {profile ? `${profile.first_name} ${profile.last_name}` : 'Usuario'}
-                    </p>
-                    {getRoleBadge()}
-                  </div>
-                  <p className="text-xs text-gray-500">
-                    {profile?.email || 'email@usuario.com'}
-                  </p>
-                  {organization && (
-                    <p className="text-xs text-gray-400">
-                      {organization.name}
-                    </p>
-                  )}
-                </div>
-                <ChevronDown className="h-4 w-4 text-gray-500" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem>
-                <User className="mr-2 h-4 w-4" />
-                Perfil
-              </DropdownMenuItem>
-              {(isAdmin || isSuperAdmin) && (
-                <DropdownMenuItem>
-                  Configuración de organización
-                </DropdownMenuItem>
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-medium text-gray-900">
+                  {profile ? `${profile.first_name} ${profile.last_name}` : 'Usuario'}
+                </p>
+                {getRoleBadge()}
+              </div>
+              <p className="text-xs text-gray-500">
+                {profile?.email || 'email@usuario.com'}
+              </p>
+              {organization && (
+                <p className="text-xs text-gray-400">
+                  {organization.name}
+                </p>
               )}
-              {isSuperAdmin && (
-                <DropdownMenuItem>
-                  Panel de Super Admin
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem 
-                className="text-red-600 focus:text-red-600"
-                onClick={signOut}
-              >
-                <LogOut className="mr-2 h-4 w-4" />
-                Cerrar sesión
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            </div>
+            <UserButton 
+              appearance={{
+                elements: {
+                  avatarBox: "w-8 h-8"
+                }
+              }}
+              showName={false}
+            />
+          </div>
         </div>
       </div>
     </header>

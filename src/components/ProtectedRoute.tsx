@@ -1,7 +1,7 @@
 
 import React from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import { SignedIn, SignedOut, RedirectToSignIn } from '@clerk/clerk-react';
+import { useAuth } from '@/contexts/ClerkAuthContext';
 import { Loader2 } from 'lucide-react';
 
 interface ProtectedRouteProps {
@@ -10,8 +10,22 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
-  const { user, profile, loading } = useAuth();
-  const location = useLocation();
+  return (
+    <>
+      <SignedIn>
+        <ProtectedContent requiredRole={requiredRole}>
+          {children}
+        </ProtectedContent>
+      </SignedIn>
+      <SignedOut>
+        <RedirectToSignIn />
+      </SignedOut>
+    </>
+  );
+}
+
+function ProtectedContent({ children, requiredRole }: ProtectedRouteProps) {
+  const { profile, loading, isAdmin, isSuperAdmin } = useAuth();
 
   if (loading) {
     return (
@@ -21,22 +35,7 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
     );
   }
 
-  if (!user) {
-    return <Navigate to="/auth" state={{ from: location }} replace />;
-  }
-
-  if (!profile) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Cargando perfil...</h2>
-          <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" />
-        </div>
-      </div>
-    );
-  }
-
-  if (requiredRole === 'superadmin' && profile.role !== 'superadmin') {
+  if (requiredRole === 'superadmin' && !isSuperAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -47,7 +46,7 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
     );
   }
 
-  if (requiredRole === 'admin' && !['admin', 'superadmin'].includes(profile.role)) {
+  if (requiredRole === 'admin' && !isAdmin && !isSuperAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
