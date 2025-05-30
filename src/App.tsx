@@ -9,6 +9,8 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Layout } from "./components/Layout";
 import { Dashboard } from "./components/Dashboard";
 import Auth from "./pages/Auth";
+import Members from "./pages/Members";
+import InviteAccept from "./pages/InviteAccept";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -22,6 +24,7 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/invite/:token" element={<InviteAccept />} />
             <Route path="/" element={
               <ProtectedRoute>
                 <Layout>
@@ -60,7 +63,7 @@ const App = () => (
             <Route path="/members" element={
               <ProtectedRoute requiredRole="admin">
                 <Layout>
-                  <div className="text-center text-gray-500 py-20">Módulo de Miembros - En desarrollo</div>
+                  <Members />
                 </Layout>
               </ProtectedRoute>
             } />
