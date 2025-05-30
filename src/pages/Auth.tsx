@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 
 export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('login');
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
   const [signupForm, setSignupForm] = useState({
     email: '',
@@ -116,7 +117,7 @@ export default function Auth() {
         title: "¡Registro exitoso!",
         description: "Tu cuenta ha sido creada. Puedes iniciar sesión ahora.",
       });
-      // Reset form
+      // Reset form and switch to login
       setSignupForm({
         email: '',
         password: '',
@@ -125,6 +126,7 @@ export default function Auth() {
         lastName: '',
         organizationName: ''
       });
+      setActiveTab('login');
     }
     
     setIsLoading(false);
@@ -142,8 +144,8 @@ export default function Auth() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
-          <div className="flex justify-center items-center gap-3 mb-4">
-            <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center">
+          <div className="flex justify-center items-center gap-3 mb-6">
+            <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-xl">S</span>
             </div>
             <div>
@@ -159,33 +161,20 @@ export default function Auth() {
           </p>
         </div>
 
-        <Card>
-          <CardHeader>
-            <Tabs defaultValue="login" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
+        <Card className="shadow-lg">
+          <CardContent className="p-6">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-6">
                 <TabsTrigger value="login">Iniciar Sesión</TabsTrigger>
                 <TabsTrigger value="signup">Registrarse</TabsTrigger>
               </TabsList>
               
-              <TabsContent value="login">
-                <CardTitle className="text-center">Iniciar Sesión</CardTitle>
-                <CardDescription className="text-center">
-                  Ingresa con tu cuenta existente
-                </CardDescription>
-              </TabsContent>
-              
-              <TabsContent value="signup">
-                <CardTitle className="text-center">Crear Cuenta</CardTitle>
-                <CardDescription className="text-center">
-                  Crea una nueva organización
-                </CardDescription>
-              </TabsContent>
-            </Tabs>
-          </CardHeader>
-
-          <CardContent>
-            <Tabs defaultValue="login" className="w-full">
-              <TabsContent value="login">
+              <TabsContent value="login" className="space-y-4">
+                <div className="text-center mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Iniciar Sesión</h3>
+                  <p className="text-sm text-gray-600">Ingresa con tu cuenta existente</p>
+                </div>
+                
                 <form onSubmit={handleLogin} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
@@ -212,14 +201,19 @@ export default function Auth() {
                     />
                   </div>
 
-                  <Button type="submit" className="w-full" disabled={isLoading}>
+                  <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isLoading}>
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Iniciar Sesión
                   </Button>
                 </form>
               </TabsContent>
 
-              <TabsContent value="signup">
+              <TabsContent value="signup" className="space-y-4">
+                <div className="text-center mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Crear Cuenta</h3>
+                  <p className="text-sm text-gray-600">Crea una nueva organización</p>
+                </div>
+                
                 <form onSubmit={handleSignup} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="organizationName">Nombre de la Organización *</Label>
@@ -296,7 +290,7 @@ export default function Auth() {
                     />
                   </div>
 
-                  <Button type="submit" className="w-full" disabled={isLoading}>
+                  <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isLoading}>
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Crear Cuenta como Administrador
                   </Button>
