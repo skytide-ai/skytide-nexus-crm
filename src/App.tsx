@@ -9,6 +9,7 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Layout } from "./components/Layout";
 import { Dashboard } from "./components/Dashboard";
 import ClerkAuth from "./pages/ClerkAuth";
+import CreateOrganization from "./pages/CreateOrganization";
 import ClerkMembers from "./pages/ClerkMembers";
 import NotFound from "./pages/NotFound";
 
@@ -23,6 +24,11 @@ const App = () => (
         <ClerkAuthProvider>
           <Routes>
             <Route path="/auth" element={<ClerkAuth />} />
+            <Route path="/create-organization" element={
+              <ProtectedRoute>
+                <CreateOrganization />
+              </ProtectedRoute>
+            } />
             <Route path="/" element={
               <ProtectedRoute>
                 <Layout>

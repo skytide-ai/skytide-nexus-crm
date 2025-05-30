@@ -1,13 +1,31 @@
 
 import React from 'react';
-import { SignIn, SignUp, useClerk } from '@clerk/clerk-react';
+import { SignIn, SignUp, useClerk, useUser } from '@clerk/clerk-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 
 export default function ClerkAuth() {
   const clerk = useClerk();
+  const { user } = useUser();
+  const navigate = useNavigate();
   
   console.log("Clerk instance:", clerk);
   console.log("Clerk loaded:", clerk?.loaded);
+  console.log("User:", user);
+
+  // Redirect authenticated users to organization creation or dashboard
+  useEffect(() => {
+    if (user && clerk?.loaded) {
+      console.log("User authenticated, checking organization...");
+      // If user has organizations, go to dashboard, otherwise create one
+      if (user.organizationMemberships && user.organizationMemberships.length > 0) {
+        navigate('/');
+      } else {
+        navigate('/create-organization');
+      }
+    }
+  }, [user, clerk?.loaded, navigate]);
 
   if (!clerk?.loaded) {
     return (
@@ -56,7 +74,7 @@ export default function ClerkAuth() {
                   path="/auth"
                   routing="path"
                   signUpUrl="/auth"
-                  redirectUrl="/"
+                  fallbackRedirectUrl="/create-organization"
                   appearance={{
                     elements: {
                       formButtonPrimary: 'bg-blue-600 hover:bg-blue-700 text-white',
@@ -79,7 +97,7 @@ export default function ClerkAuth() {
                   path="/auth"
                   routing="path"
                   signInUrl="/auth"
-                  redirectUrl="/"
+                  fallbackRedirectUrl="/create-organization"
                   appearance={{
                     elements: {
                       formButtonPrimary: 'bg-blue-600 hover:bg-blue-700 text-white',
