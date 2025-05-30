@@ -31,25 +31,20 @@ serve(async (req) => {
 
     console.log('Authorization header received');
 
-    // Crear cliente de Supabase con la configuración correcta
+    // Crear cliente de Supabase simplificado
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       {
         global: {
           headers: { 
-            Authorization: authHeader,
-            apikey: Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+            Authorization: authHeader
           },
-        },
-        auth: {
-          persistSession: false,
-          autoRefreshToken: false,
-        },
+        }
       }
     );
 
-    // Verificar autenticación usando el token JWT directamente
+    // Verificar autenticación
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError) {
@@ -104,8 +99,16 @@ serve(async (req) => {
       throw new Error('Este email ya está registrado en el sistema');
     }
 
+    console.log('Creating invitation for email:', email);
+
+    // Usar el service role key para bypasear RLS al crear la invitación
+    const adminSupabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
     // Crear invitación
-    const { error: inviteError } = await supabase
+    const { error: inviteError } = await adminSupabase
       .from('member_invitations')
       .insert({
         organization_id: profile.organization_id,
@@ -118,7 +121,7 @@ serve(async (req) => {
 
     if (inviteError) {
       console.error('Error creating invitation:', inviteError);
-      throw new Error('Error al crear la invitación');
+      throw new Error('Error al crear la invitación: ' + inviteError.message);
     }
 
     console.log('Invitation created successfully');
@@ -131,6 +134,8 @@ serve(async (req) => {
       .single();
 
     const inviteUrl = `${req.headers.get('origin')}/invite/${token}`;
+
+    console.log('Sending email to:', email);
 
     // Enviar email
     const { error: emailError } = await resend.emails.send({
@@ -169,7 +174,7 @@ serve(async (req) => {
 
     if (emailError) {
       console.error('Error sending email:', emailError);
-      throw new Error('Error al enviar el email de invitación');
+      throw new Error('Error al enviar el email de invitación: ' + emailError.message);
     }
 
     console.log('Email sent successfully');
