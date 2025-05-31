@@ -135,7 +135,7 @@ serve(async (req) => {
 
     // Get the origin from the request for redirect URL
     const origin = req.headers.get('origin') || req.headers.get('referer')?.split('/').slice(0, 3).join('/');
-    const redirectUrl = `${origin}/auth`;
+    const redirectUrl = `${origin}/set-password`;
     
     console.log('Using redirect URL:', redirectUrl);
 
