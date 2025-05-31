@@ -97,6 +97,7 @@ export type Database = {
           is_active: boolean | null
           last_name: string
           organization_id: string | null
+          password_changed: boolean | null
           role: Database["public"]["Enums"]["app_role"]
           updated_at: string
         }
@@ -109,6 +110,7 @@ export type Database = {
           is_active?: boolean | null
           last_name: string
           organization_id?: string | null
+          password_changed?: boolean | null
           role?: Database["public"]["Enums"]["app_role"]
           updated_at?: string
         }
@@ -121,6 +123,7 @@ export type Database = {
           is_active?: boolean | null
           last_name?: string
           organization_id?: string | null
+          password_changed?: boolean | null
           role?: Database["public"]["Enums"]["app_role"]
           updated_at?: string
         }
