@@ -47,35 +47,57 @@ export function useServices() {
         throw new Error('No organization ID found');
       }
 
-      const { data, error } = await supabase
+      // First, fetch services
+      const { data: services, error: servicesError } = await supabase
         .from('services')
-        .select(`
-          *,
-          service_assignments (
-            member_id,
-            profiles (
-              id,
-              first_name,
-              last_name,
-              email,
-              avatar_url
-            )
-          )
-        `)
+        .select('*')
         .eq('organization_id', profile.organization_id)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching services:', error);
-        throw error;
+      if (servicesError) {
+        console.error('Error fetching services:', servicesError);
+        throw servicesError;
       }
 
-      console.log('Services fetched successfully:', data?.length || 0, 'services');
+      console.log('Services fetched successfully:', services?.length || 0, 'services');
 
-      return data.map(service => ({
-        ...service,
-        assigned_members: service.service_assignments?.map((assignment: any) => assignment.profiles).filter(Boolean) || []
-      }));
+      // For each service, fetch assigned members separately
+      const servicesWithMembers = await Promise.all(
+        services.map(async (service) => {
+          const { data: assignments, error: assignmentsError } = await supabase
+            .from('service_assignments')
+            .select(`
+              member_id,
+              profiles!service_assignments_member_id_fkey (
+                id,
+                first_name,
+                last_name,
+                email,
+                avatar_url
+              )
+            `)
+            .eq('service_id', service.id);
+
+          if (assignmentsError) {
+            console.error('Error fetching assignments for service:', service.id, assignmentsError);
+            return {
+              ...service,
+              assigned_members: []
+            };
+          }
+
+          const assigned_members = assignments
+            ?.map((assignment: any) => assignment.profiles)
+            .filter(Boolean) || [];
+
+          return {
+            ...service,
+            assigned_members
+          };
+        })
+      );
+
+      return servicesWithMembers;
     },
     enabled: !!profile?.organization_id,
     staleTime: 30000, // Cache for 30 seconds
