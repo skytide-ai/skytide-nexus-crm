@@ -131,7 +131,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Check if user already exists
+    // Check if user already exists in profiles
     const { data: existingUser } = await supabaseAdmin
       .from('profiles')
       .select('id')
@@ -139,17 +139,71 @@ const handler = async (req: Request): Promise<Response> => {
       .maybeSingle();
 
     if (existingUser) {
-      console.log('User already exists:', email);
+      console.log('User already exists in profiles:', email);
       return new Response(
-        JSON.stringify({ error: 'User with this email already exists' }),
+        JSON.stringify({ error: 'Este usuario ya está registrado en el sistema' }),
         { status: 409, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    console.log('Sending invitation using admin client...');
+    // Check if there's already a pending invitation for this email in this organization
+    const { data: existingInvitation } = await supabaseAdmin
+      .from('member_invitations')
+      .select('id, used, expires_at')
+      .eq('email', email)
+      .eq('organization_id', profile.organization_id)
+      .eq('used', false)
+      .maybeSingle();
 
-    // Invite user using Supabase's built-in method with correct parameters
-    const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+    if (existingInvitation) {
+      // Check if the invitation is still valid
+      const now = new Date();
+      const expiresAt = new Date(existingInvitation.expires_at);
+      
+      if (expiresAt > now) {
+        console.log('Active invitation already exists for this email');
+        return new Response(
+          JSON.stringify({ error: 'Ya existe una invitación activa para este email' }),
+          { status: 409, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      } else {
+        // Delete expired invitation
+        console.log('Removing expired invitation');
+        await supabaseAdmin
+          .from('member_invitations')
+          .delete()
+          .eq('id', existingInvitation.id);
+      }
+    }
+
+    // Generate invitation token
+    const token_invitation = crypto.randomUUID();
+    console.log('Generated invitation token');
+
+    // Create invitation record in member_invitations table
+    const { error: inviteError } = await supabaseAdmin
+      .from('member_invitations')
+      .insert({
+        organization_id: profile.organization_id,
+        email,
+        first_name: firstName,
+        last_name: lastName,
+        invited_by: user.id,
+        token: token_invitation
+      });
+
+    if (inviteError) {
+      console.error('Error creating invitation record:', inviteError);
+      return new Response(
+        JSON.stringify({ error: 'Error al crear la invitación: ' + inviteError.message }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    console.log('Invitation record created successfully');
+
+    // Invite user using Supabase's built-in method
+    const { data: inviteData, error: supabaseInviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
       email,
       {
         redirectTo: `${req.headers.get('origin') || 'http://localhost:3000'}/auth`,
@@ -162,20 +216,26 @@ const handler = async (req: Request): Promise<Response> => {
       }
     );
 
-    if (inviteError) {
-      console.error('Error inviting user:', inviteError);
+    if (supabaseInviteError) {
+      console.error('Error with Supabase invitation:', supabaseInviteError);
+      // If Supabase invitation fails, we should remove the invitation record
+      await supabaseAdmin
+        .from('member_invitations')
+        .delete()
+        .eq('token', token_invitation);
+        
       return new Response(
-        JSON.stringify({ error: inviteError.message }),
+        JSON.stringify({ error: supabaseInviteError.message }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    console.log('Invitation sent successfully');
+    console.log('Supabase invitation sent successfully');
 
     return new Response(
       JSON.stringify({ 
         success: true,
-        message: `Invitation sent to ${email}`,
+        message: `Invitación enviada exitosamente a ${email}`,
         user: inviteData.user
       }),
       { 

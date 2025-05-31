@@ -30,6 +30,7 @@ export const useMembers = () => {
   const { data: invitations = [], isLoading: invitationsLoading } = useQuery({
     queryKey: ['invitations', profile?.organization_id],
     queryFn: async () => {
+      console.log('Fetching invitations for organization:', profile?.organization_id);
       const { data, error } = await supabase
         .from('member_invitations')
         .select('*')
@@ -37,7 +38,11 @@ export const useMembers = () => {
         .eq('used', false)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching invitations:', error);
+        throw error;
+      }
+      console.log('Fetched invitations:', data);
       return data as MemberInvitation[];
     },
     enabled: !!profile?.organization_id && isAdmin,
@@ -73,12 +78,18 @@ export const useMembers = () => {
       });
 
       console.log('Response status:', response.status);
-      console.log('Response headers:', response.headers);
 
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Error response:', errorText);
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
+        
+        // Parse the error message if it's JSON
+        try {
+          const errorData = JSON.parse(errorText);
+          throw new Error(errorData.error || `HTTP ${response.status}: ${errorText}`);
+        } catch {
+          throw new Error(`HTTP ${response.status}: ${errorText}`);
+        }
       }
 
       const data = await response.json();
