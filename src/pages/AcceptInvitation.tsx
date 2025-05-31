@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, CheckCircle, AlertCircle, UserPlus } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 
 interface InvitationData {
   email: string;
