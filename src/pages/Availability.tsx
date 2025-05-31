@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,7 +25,7 @@ import { SpecialDates } from '@/components/availability/SpecialDates';
 export function Availability() {
   const { profile } = useAuth();
   const { members } = useMembers();
-  const [selectedMemberId, setSelectedMemberId] = useState<string | undefined>();
+  const [selectedMemberId, setSelectedMemberId] = useState<string | undefined>(profile?.id);
 
   const isAdmin = profile?.role === 'admin' || profile?.role === 'superadmin';
   const targetMemberId = selectedMemberId || profile?.id;
@@ -179,16 +178,6 @@ export function Availability() {
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={() => setSelectedMemberId(undefined)}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      !selectedMemberId 
-                        ? 'bg-primary text-white' 
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    Mi disponibilidad
-                  </button>
                   {members.map((member) => (
                     <button
                       key={member.id}
