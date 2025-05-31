@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Clock, Plus, Trash2, Coffee } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -79,7 +80,7 @@ export function WeeklyAvailability({
     return DAYS_OF_WEEK.find(day => day.value === dayOfWeek)?.label || 'Desconocido';
   };
 
-  // Agrupar disponibilidad por día - corrigiendo el tipo
+  // Agrupar disponibilidad por día
   const availabilityByDay = availability.reduce((acc, slot) => {
     if (!acc[slot.day_of_week]) {
       acc[slot.day_of_week] = [];
