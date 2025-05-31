@@ -7,25 +7,24 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface CreateMemberRequest {
+interface CreateInvitationRequest {
   email: string;
   firstName: string;
   lastName: string;
 }
 
-// Función para generar contraseña temporal aleatoria
-function generateTemporaryPassword(): string {
-  const length = 12;
-  const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%";
-  let password = "";
-  for (let i = 0; i < length; i++) {
-    password += charset.charAt(Math.floor(Math.random() * charset.length));
+// Función para generar token único
+function generateInvitationToken(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let token = '';
+  for (let i = 0; i < 32; i++) {
+    token += chars.charAt(Math.floor(Math.random() * chars.length));
   }
-  return password;
+  return token;
 }
 
 serve(async (req) => {
-  console.log('=== Create member function started ===');
+  console.log('=== Create invitation token function started ===');
   
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -47,7 +46,7 @@ serve(async (req) => {
 
     console.log('Authorization header found');
 
-    // Create Supabase client with service role for admin operations
+    // Create Supabase client
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -96,7 +95,7 @@ serve(async (req) => {
     if (!['admin', 'superadmin'].includes(profile.role)) {
       console.error('Insufficient permissions:', profile.role);
       return new Response(
-        JSON.stringify({ error: 'No tienes permisos para crear miembros' }),
+        JSON.stringify({ error: 'No tienes permisos para crear invitaciones' }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 403,
@@ -105,7 +104,7 @@ serve(async (req) => {
     }
 
     // Parse request body
-    const { email, firstName, lastName }: CreateMemberRequest = await req.json();
+    const { email, firstName, lastName }: CreateInvitationRequest = await req.json();
 
     if (!email || !firstName || !lastName) {
       return new Response(
@@ -117,7 +116,7 @@ serve(async (req) => {
       );
     }
 
-    console.log('Member data:', { email, firstName, lastName });
+    console.log('Invitation data:', { email, firstName, lastName });
 
     // Check if user already exists
     const { data: existingUser } = await supabase
@@ -137,27 +136,20 @@ serve(async (req) => {
       );
     }
 
-    // Generate temporary password
-    const temporaryPassword = generateTemporaryPassword();
-    console.log('Generated temporary password');
+    // Check if there's already a pending invitation
+    const { data: existingInvitation } = await supabase
+      .from('member_invitations')
+      .select('id')
+      .eq('email', email)
+      .eq('organization_id', profile.organization_id)
+      .eq('used', false)
+      .gt('expires_at', new Date().toISOString())
+      .maybeSingle();
 
-    // Create user using admin API
-    const { data: newUser, error: createUserError } = await supabase.auth.admin.createUser({
-      email,
-      password: temporaryPassword,
-      email_confirm: true, // Skip email verification
-      user_metadata: {
-        first_name: firstName,
-        last_name: lastName,
-        organization_id: profile.organization_id,
-        password_changed: false // Flag para indicar que debe cambiar la contraseña
-      }
-    });
-
-    if (createUserError || !newUser.user) {
-      console.error('Error creating user:', createUserError);
+    if (existingInvitation) {
+      console.log('Pending invitation already exists');
       return new Response(
-        JSON.stringify({ error: 'Error al crear el usuario: ' + createUserError?.message }),
+        JSON.stringify({ error: 'Ya existe una invitación pendiente para este email' }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 400,
@@ -165,28 +157,28 @@ serve(async (req) => {
       );
     }
 
-    console.log('User created successfully:', newUser.user.id);
+    // Generate unique token
+    const token = generateInvitationToken();
+    console.log('Generated invitation token');
 
-    // Create profile entry
-    const { error: profileCreateError } = await supabase
-      .from('profiles')
+    // Create invitation record
+    const { data: invitation, error: invitationError } = await supabase
+      .from('member_invitations')
       .insert({
-        id: newUser.user.id,
+        token,
         email,
         first_name: firstName,
         last_name: lastName,
         organization_id: profile.organization_id,
-        role: 'member',
-        is_active: true,
-        password_changed: false
-      });
+        invited_by: user.id
+      })
+      .select()
+      .single();
 
-    if (profileCreateError) {
-      console.error('Error creating profile:', profileCreateError);
-      // Try to delete the user if profile creation failed
-      await supabase.auth.admin.deleteUser(newUser.user.id);
+    if (invitationError || !invitation) {
+      console.error('Error creating invitation:', invitationError);
       return new Response(
-        JSON.stringify({ error: 'Error al crear el perfil: ' + profileCreateError.message }),
+        JSON.stringify({ error: 'Error al crear la invitación: ' + invitationError?.message }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 400,
@@ -194,16 +186,17 @@ serve(async (req) => {
       );
     }
 
-    console.log('Profile created successfully');
-    console.log('=== Create member completed successfully ===');
+    console.log('Invitation created successfully:', invitation.id);
+    console.log('=== Create invitation completed successfully ===');
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'Miembro creado correctamente',
-        credentials: {
-          email,
-          password: temporaryPassword
+        message: 'Invitación creada correctamente',
+        invitation: {
+          token: invitation.token,
+          email: invitation.email,
+          expiresAt: invitation.expires_at
         }
       }),
       {

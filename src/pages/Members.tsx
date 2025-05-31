@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { UserPlus, Edit, Trash2, Search, Copy, Eye, EyeOff } from 'lucide-react';
+import { UserPlus, Edit, Trash2, Search, Copy, Eye, EyeOff, ExternalLink, Clock } from 'lucide-react';
 
 interface MemberProfile {
   id: string;
@@ -23,12 +23,25 @@ interface MemberProfile {
   avatar_url: string | null;
   is_active: boolean;
   created_at: string;
-  password_changed?: boolean;
 }
 
-interface CreateMemberCredentials {
+interface MemberInvitation {
+  id: string;
+  token: string;
   email: string;
-  password: string;
+  first_name: string;
+  last_name: string;
+  expires_at: string;
+  used: boolean;
+  created_at: string;
+}
+
+interface CreateInvitationResponse {
+  invitation: {
+    token: string;
+    email: string;
+    expiresAt: string;
+  };
 }
 
 export default function Members() {
@@ -38,9 +51,8 @@ export default function Members() {
   
   const [searchTerm, setSearchTerm] = useState('');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [showCredentialsDialog, setShowCredentialsDialog] = useState(false);
-  const [generatedCredentials, setGeneratedCredentials] = useState<CreateMemberCredentials | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
+  const [showInvitationDialog, setShowInvitationDialog] = useState(false);
+  const [generatedInvitation, setGeneratedInvitation] = useState<CreateInvitationResponse['invitation'] | null>(null);
   const [createForm, setCreateForm] = useState({
     email: '',
     firstName: '',
@@ -63,10 +75,28 @@ export default function Members() {
     enabled: !!profile?.organization_id && isAdmin,
   });
 
-  // Mutación para crear miembro
-  const createMemberMutation = useMutation({
+  // Obtener invitaciones pendientes
+  const { data: invitations = [], isLoading: invitationsLoading } = useQuery({
+    queryKey: ['invitations', profile?.organization_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('member_invitations')
+        .select('*')
+        .eq('organization_id', profile?.organization_id)
+        .eq('used', false)
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data as MemberInvitation[];
+    },
+    enabled: !!profile?.organization_id && isAdmin,
+  });
+
+  // Mutación para crear invitación
+  const createInvitationMutation = useMutation({
     mutationFn: async (memberData: typeof createForm) => {
-      console.log('Creando miembro...', memberData);
+      console.log('Creando invitación...', memberData);
       
       // Obtener el token de sesión actual
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -78,7 +108,7 @@ export default function Members() {
 
       console.log('Token obtenido, llamando función...');
 
-      const { data, error } = await supabase.functions.invoke('create-member', {
+      const { data, error } = await supabase.functions.invoke('create-invitation-token', {
         body: {
           email: memberData.email,
           firstName: memberData.firstName,
@@ -97,24 +127,24 @@ export default function Members() {
         throw error;
       }
       
-      return data;
+      return data as CreateInvitationResponse;
     },
     onSuccess: (data) => {
       toast({
-        title: "Miembro creado",
-        description: "El miembro ha sido creado correctamente. Se han generado las credenciales.",
+        title: "Invitación creada",
+        description: "Se ha generado el link de invitación correctamente.",
       });
       setCreateForm({ email: '', firstName: '', lastName: '' });
       setIsCreateDialogOpen(false);
-      setGeneratedCredentials(data.credentials);
-      setShowCredentialsDialog(true);
-      queryClient.invalidateQueries({ queryKey: ['members'] });
+      setGeneratedInvitation(data.invitation);
+      setShowInvitationDialog(true);
+      queryClient.invalidateQueries({ queryKey: ['invitations'] });
     },
     onError: (error: any) => {
       console.error('Error completo:', error);
       toast({
         title: "Error",
-        description: error.message || "Error al crear el miembro",
+        description: error.message || "Error al crear la invitación",
         variant: "destructive",
       });
     },
@@ -180,7 +210,7 @@ export default function Members() {
 
   const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    createMemberMutation.mutate(createForm);
+    createInvitationMutation.mutate(createForm);
   };
 
   const handleToggleActive = (memberId: string, isActive: boolean) => {
@@ -204,6 +234,14 @@ export default function Members() {
     });
   };
 
+  const getInvitationLink = (token: string) => {
+    return `${window.location.origin}/register?token=${token}`;
+  };
+
+  const isInvitationExpired = (expiresAt: string) => {
+    return new Date(expiresAt) < new Date();
+  };
+
   if (!isAdmin) {
     return (
       <div className="text-center py-20">
@@ -225,14 +263,14 @@ export default function Members() {
           <DialogTrigger asChild>
             <Button className="bg-blue-600 hover:bg-blue-700">
               <UserPlus className="mr-2 h-4 w-4" />
-              Crear Miembro
+              Invitar Miembro
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Crear Nuevo Miembro</DialogTitle>
+              <DialogTitle>Invitar Nuevo Miembro</DialogTitle>
               <DialogDescription>
-                Crea un nuevo miembro con credenciales temporales que deberá cambiar en su primer acceso
+                Genera un link de invitación que expira en 7 días. El miembro podrá registrarse usando este link.
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleCreateSubmit} className="space-y-4">
@@ -270,8 +308,8 @@ export default function Members() {
                 <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={createMemberMutation.isPending}>
-                  {createMemberMutation.isPending ? 'Creando...' : 'Crear Miembro'}
+                <Button type="submit" disabled={createInvitationMutation.isPending}>
+                  {createInvitationMutation.isPending ? 'Generando...' : 'Generar Invitación'}
                 </Button>
               </div>
             </form>
@@ -279,62 +317,61 @@ export default function Members() {
         </Dialog>
       </div>
 
-      {/* Modal para mostrar credenciales generadas */}
-      <Dialog open={showCredentialsDialog} onOpenChange={setShowCredentialsDialog}>
+      {/* Modal para mostrar link de invitación */}
+      <Dialog open={showInvitationDialog} onOpenChange={setShowInvitationDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Credenciales del Nuevo Miembro</DialogTitle>
+            <DialogTitle>Link de Invitación Generado</DialogTitle>
             <DialogDescription>
-              Guarda estas credenciales y compártelas con el nuevo miembro. Deberá cambiar la contraseña en su primer acceso.
+              Comparte este link con el nuevo miembro. El link expira en 7 días.
             </DialogDescription>
           </DialogHeader>
-          {generatedCredentials && (
+          {generatedInvitation && (
             <div className="space-y-4">
               <div className="p-4 bg-gray-50 rounded-lg space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label>Email:</Label>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-sm">{generatedCredentials.email}</span>
+                <div>
+                  <Label className="text-sm font-medium">Email del invitado:</Label>
+                  <p className="text-sm text-gray-600">{generatedInvitation.email}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Link de invitación:</Label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Input
+                      value={getInvitationLink(generatedInvitation.token)}
+                      readOnly
+                      className="text-xs"
+                    />
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => copyToClipboard(generatedCredentials.email)}
+                      onClick={() => copyToClipboard(getInvitationLink(generatedInvitation.token))}
                     >
                       <Copy className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.open(getInvitationLink(generatedInvitation.token), '_blank')}
+                    >
+                      <ExternalLink className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <Label>Contraseña temporal:</Label>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-sm">
-                      {showPassword ? generatedCredentials.password : '••••••••••••'}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => copyToClipboard(generatedCredentials.password)}
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  </div>
+                <div>
+                  <Label className="text-sm font-medium">Expira:</Label>
+                  <p className="text-sm text-gray-600">
+                    {new Date(generatedInvitation.expiresAt).toLocaleString()}
+                  </p>
                 </div>
               </div>
               <div className="text-sm text-amber-600 bg-amber-50 p-3 rounded-lg">
-                <strong>Importante:</strong> El usuario deberá cambiar esta contraseña en su primer acceso al sistema.
+                <strong>Importante:</strong> Guarda este link en un lugar seguro. Una vez cerrado este modal, 
+                podrás verlo en la lista de invitaciones pendientes.
               </div>
               <div className="flex justify-end">
                 <Button onClick={() => {
-                  setShowCredentialsDialog(false);
-                  setGeneratedCredentials(null);
-                  setShowPassword(false);
+                  setShowInvitationDialog(false);
+                  setGeneratedInvitation(null);
                 }}>
                   Entendido
                 </Button>
@@ -359,6 +396,52 @@ export default function Members() {
         </CardContent>
       </Card>
 
+      {/* Invitaciones pendientes */}
+      {invitations.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              Invitaciones Pendientes
+            </CardTitle>
+            <CardDescription>
+              {invitations.length} invitación{invitations.length !== 1 ? 'es' : ''} pendiente{invitations.length !== 1 ? 's' : ''}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {invitations.map((invitation) => (
+                <div key={invitation.id} className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                  <div>
+                    <p className="font-medium">{invitation.first_name} {invitation.last_name}</p>
+                    <p className="text-sm text-gray-600">{invitation.email}</p>
+                    <p className="text-xs text-gray-500">
+                      Expira: {new Date(invitation.expires_at).toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => copyToClipboard(getInvitationLink(invitation.token))}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.open(getInvitationLink(invitation.token), '_blank')}
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Lista de miembros */}
       <Card>
         <CardHeader>
@@ -382,7 +465,6 @@ export default function Members() {
                   <TableHead>Email</TableHead>
                   <TableHead>Rol</TableHead>
                   <TableHead>Estado</TableHead>
-                  <TableHead>Contraseña</TableHead>
                   <TableHead>Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -421,23 +503,12 @@ export default function Members() {
                         <Switch
                           checked={member.is_active}
                           onCheckedChange={(checked) => handleToggleActive(member.id, checked)}
-                          disabled={member.id === profile?.id} // No puede desactivarse a sí mismo
+                          disabled={member.id === profile?.id}
                         />
                         <span className="text-sm">
                           {member.is_active ? 'Activo' : 'Inactivo'}
                         </span>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      {member.password_changed === false ? (
-                        <span className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded-full">
-                          Temporal
-                        </span>
-                      ) : (
-                        <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                          Cambiada
-                        </span>
-                      )}
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
