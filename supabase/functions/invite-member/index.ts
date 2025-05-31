@@ -91,7 +91,31 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const { email, firstName, lastName }: InviteMemberRequest = await req.json();
+    // Parse request body with better error handling
+    let requestBody;
+    try {
+      const bodyText = await req.text();
+      console.log('Raw body text:', bodyText);
+      
+      if (!bodyText || bodyText.trim() === '') {
+        console.log('Empty request body');
+        return new Response(
+          JSON.stringify({ error: 'Request body is required' }),
+          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+      
+      requestBody = JSON.parse(bodyText);
+      console.log('Parsed request body:', requestBody);
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError);
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON in request body' }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    const { email, firstName, lastName }: InviteMemberRequest = requestBody;
     console.log('Invite request for:', email);
 
     if (!email || !firstName || !lastName) {
