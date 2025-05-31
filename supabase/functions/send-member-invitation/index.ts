@@ -37,18 +37,8 @@ serve(async (req) => {
 
     console.log('Authorization header found');
 
-    // Create Supabase client with the user's JWT token
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: {
-            Authorization: authHeader,
-          },
-        },
-      }
-    );
+    // Extract the JWT token from the header
+    const token = authHeader.replace('Bearer ', '');
 
     // Create admin client for database operations
     const supabaseAdmin = createClient(
@@ -56,8 +46,8 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Verify user authentication using the user client
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
+    // Verify user authentication by passing the token explicitly
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
     
     if (authError || !user) {
       console.error('Authentication failed:', authError?.message);
@@ -138,8 +128,8 @@ serve(async (req) => {
     }
 
     // Generate invitation token
-    const token = crypto.randomUUID();
-    console.log('Generated token:', token);
+    const token_invitation = crypto.randomUUID();
+    console.log('Generated token:', token_invitation);
 
     // Create invitation
     const { error: inviteError } = await supabaseAdmin
@@ -150,7 +140,7 @@ serve(async (req) => {
         first_name: firstName,
         last_name: lastName,
         invited_by: user.id,
-        token
+        token: token_invitation
       });
 
     if (inviteError) {
@@ -175,7 +165,7 @@ serve(async (req) => {
 
     // Send email using Resend
     const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
-    const inviteUrl = `${req.headers.get('origin')}/invite/${token}`;
+    const inviteUrl = `${req.headers.get('origin')}/invite/${token_invitation}`;
 
     console.log('Sending email to:', email);
 
