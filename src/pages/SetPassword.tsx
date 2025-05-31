@@ -38,6 +38,8 @@ export default function SetPassword() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [tokens, setTokens] = useState<{ access_token: string; refresh_token: string } | null>(null);
+  const [hasValidTokens, setHasValidTokens] = useState(false);
 
   const form = useForm<PasswordFormData>({
     resolver: zodResolver(passwordSchema),
@@ -48,19 +50,25 @@ export default function SetPassword() {
   });
 
   useEffect(() => {
-    // Verificar si hay un access_token en la URL
+    console.log('SetPassword: Checking for tokens in URL');
+    
+    // Extraer tokens del hash de la URL SIN hacer login automático
     const hashParams = new URLSearchParams(window.location.hash.substring(1));
     const accessToken = hashParams.get('access_token');
     const refreshToken = hashParams.get('refresh_token');
 
+    console.log('SetPassword: Found tokens?', { hasAccess: !!accessToken, hasRefresh: !!refreshToken });
+
     if (accessToken && refreshToken) {
-      // Establecer la sesión con los tokens de la URL
-      supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken,
-      });
+      console.log('SetPassword: Storing tokens for later use');
+      setTokens({ access_token: accessToken, refresh_token: refreshToken });
+      setHasValidTokens(true);
+      
+      // Limpiar la URL del hash pero mantener los tokens en memoria
+      window.history.replaceState({}, document.title, window.location.pathname);
     } else {
-      // Si no hay tokens, redirigir al login
+      console.log('SetPassword: No valid tokens found, redirecting to auth');
+      // Si no hay tokens válidos, redirigir al login
       toast({
         title: "Error",
         description: "Enlace de invitación inválido o expirado",
@@ -71,20 +79,53 @@ export default function SetPassword() {
   }, [navigate, toast]);
 
   const onSubmit = async (data: PasswordFormData) => {
+    if (!tokens) {
+      toast({
+        title: "Error",
+        description: "Tokens de sesión no encontrados",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: data.password,
+      console.log('SetPassword: Setting session with stored tokens');
+      
+      // Primero establecer la sesión con los tokens almacenados
+      const { error: sessionError } = await supabase.auth.setSession({
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token,
       });
 
-      if (error) {
+      if (sessionError) {
+        console.error('SetPassword: Session error:', sessionError);
         toast({
           title: "Error",
-          description: error.message,
+          description: "Error al establecer la sesión: " + sessionError.message,
           variant: "destructive",
         });
         return;
       }
+
+      console.log('SetPassword: Session established, updating password');
+
+      // Ahora actualizar la contraseña del usuario
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: data.password,
+      });
+
+      if (updateError) {
+        console.error('SetPassword: Update error:', updateError);
+        toast({
+          title: "Error",
+          description: "Error al actualizar la contraseña: " + updateError.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log('SetPassword: Password updated successfully');
 
       toast({
         title: "Contraseña establecida",
@@ -94,7 +135,7 @@ export default function SetPassword() {
       // Redirigir al dashboard
       navigate('/');
     } catch (error: any) {
-      console.error('Error updating password:', error);
+      console.error('SetPassword: Unexpected error:', error);
       toast({
         title: "Error",
         description: "Error al establecer la contraseña",
@@ -104,6 +145,18 @@ export default function SetPassword() {
       setLoading(false);
     }
   };
+
+  // Si no tenemos tokens válidos, mostrar loading hasta que se redirija
+  if (!hasValidTokens) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p>Verificando enlace de invitación...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
