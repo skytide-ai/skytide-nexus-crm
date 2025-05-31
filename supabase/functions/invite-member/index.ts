@@ -19,21 +19,20 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    console.log('Starting invite-member function...');
+    
     const authHeader = req.headers.get('Authorization');
+    console.log('Auth header present:', !!authHeader);
+    
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log('No valid authorization header');
       return new Response(
         JSON.stringify({ error: 'Authorization header required' }),
         { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    // Create admin client for auth operations
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
-    // Create regular client for user verification
+    // Create regular client for user verification with the auth header
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -46,15 +45,28 @@ const handler = async (req: Request): Promise<Response> => {
       }
     );
 
+    console.log('Getting user from token...');
+    
     // Verify current user
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
-    if (authError || !user) {
+    if (authError) {
+      console.error('Auth error:', authError);
       return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
+        JSON.stringify({ error: 'Authentication failed', details: authError.message }),
         { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
+    
+    if (!user) {
+      console.log('No user found');
+      return new Response(
+        JSON.stringify({ error: 'User not found' }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    console.log('User verified:', user.id);
 
     // Get user profile
     const { data: profile, error: profileError } = await supabase
@@ -63,15 +75,19 @@ const handler = async (req: Request): Promise<Response> => {
       .eq('id', user.id)
       .single();
 
-    if (profileError || !profile) {
+    if (profileError) {
+      console.error('Profile error:', profileError);
       return new Response(
-        JSON.stringify({ error: 'Profile not found' }),
+        JSON.stringify({ error: 'Profile not found', details: profileError.message }),
         { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
+    console.log('Profile found:', profile);
+
     // Check admin permissions
     if (!['admin', 'superadmin'].includes(profile.role)) {
+      console.log('Insufficient permissions for role:', profile.role);
       return new Response(
         JSON.stringify({ error: 'Insufficient permissions' }),
         { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } }
@@ -79,6 +95,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const { email, firstName, lastName }: InviteMemberRequest = await req.json();
+    console.log('Invite request for:', email);
 
     if (!email || !firstName || !lastName) {
       return new Response(
@@ -101,6 +118,14 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // Create admin client for the invitation
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    console.log('Sending invitation using admin client...');
+
     // Invite user using Supabase's built-in method
     const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
       email,
@@ -122,6 +147,8 @@ const handler = async (req: Request): Promise<Response> => {
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
+
+    console.log('Invitation sent successfully');
 
     return new Response(
       JSON.stringify({ 
