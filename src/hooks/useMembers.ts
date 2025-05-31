@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -121,53 +120,69 @@ export const useMembers = () => {
     },
   });
 
-  // Mutación para eliminar miembro
+  // Mutación para eliminar miembro - ahora elimina completamente la fila
   const deleteMemberMutation = useMutation({
     mutationFn: async (memberId: string) => {
+      console.log('Eliminando miembro con ID:', memberId);
+      
       const { error } = await supabase
         .from('profiles')
         .delete()
         .eq('id', memberId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error al eliminar miembro:', error);
+        throw error;
+      }
+      
+      console.log('Miembro eliminado exitosamente');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['members'] });
       toast({
         title: "Miembro eliminado",
-        description: "El miembro ha sido eliminado correctamente.",
+        description: "El miembro ha sido eliminado completamente del sistema.",
       });
     },
     onError: (error: any) => {
+      console.error('Error en deleteMemberMutation:', error);
       toast({
         title: "Error",
-        description: "Error al eliminar el miembro",
+        description: "Error al eliminar el miembro: " + error.message,
         variant: "destructive",
       });
     },
   });
 
-  // Mutación para cancelar invitación
+  // Mutación para cancelar invitación - ahora elimina completamente la fila
   const cancelInvitationMutation = useMutation({
     mutationFn: async (invitationId: string) => {
+      console.log('Eliminando invitación con ID:', invitationId);
+      
       const { error } = await supabase
         .from('member_invitations')
-        .update({ status: 'expired' })
+        .delete()
         .eq('id', invitationId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error al eliminar invitación:', error);
+        throw error;
+      }
+      
+      console.log('Invitación eliminada exitosamente');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pending-invitations'] });
       toast({
-        title: "Invitación cancelada",
-        description: "La invitación ha sido cancelada correctamente.",
+        title: "Invitación eliminada",
+        description: "La invitación ha sido eliminada completamente del sistema.",
       });
     },
     onError: (error: any) => {
+      console.error('Error en cancelInvitationMutation:', error);
       toast({
         title: "Error",
-        description: "Error al cancelar la invitación",
+        description: "Error al eliminar la invitación: " + error.message,
         variant: "destructive",
       });
     },
