@@ -20,6 +20,8 @@ const handler = async (req: Request): Promise<Response> => {
 
   try {
     console.log('Starting invite-member function...');
+    console.log('Request method:', req.method);
+    console.log('Request headers:', Object.fromEntries(req.headers.entries()));
     
     const authHeader = req.headers.get('Authorization');
     console.log('Auth header present:', !!authHeader);
@@ -36,7 +38,7 @@ const handler = async (req: Request): Promise<Response> => {
     const token = authHeader.replace('Bearer ', '');
     console.log('Token extracted, length:', token.length);
 
-    // Create admin client to verify the user
+    // Create admin client
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -91,11 +93,12 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Parse request body with better error handling
+    // Parse request body
     let requestBody;
     try {
       const bodyText = await req.text();
       console.log('Raw body text:', bodyText);
+      console.log('Body text length:', bodyText.length);
       
       if (!bodyText || bodyText.trim() === '') {
         console.log('Empty request body');
@@ -110,15 +113,16 @@ const handler = async (req: Request): Promise<Response> => {
     } catch (parseError) {
       console.error('JSON parse error:', parseError);
       return new Response(
-        JSON.stringify({ error: 'Invalid JSON in request body' }),
+        JSON.stringify({ error: 'Invalid JSON in request body', details: parseError.message }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
     const { email, firstName, lastName }: InviteMemberRequest = requestBody;
-    console.log('Invite request for:', email);
+    console.log('Invite request for:', email, firstName, lastName);
 
     if (!email || !firstName || !lastName) {
+      console.log('Missing required fields:', { email, firstName, lastName });
       return new Response(
         JSON.stringify({ error: 'Email, firstName, and lastName are required' }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
@@ -133,6 +137,7 @@ const handler = async (req: Request): Promise<Response> => {
       .maybeSingle();
 
     if (existingUser) {
+      console.log('User already exists:', email);
       return new Response(
         JSON.stringify({ error: 'User with this email already exists' }),
         { status: 409, headers: { "Content-Type": "application/json", ...corsHeaders } }
@@ -180,7 +185,7 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error: any) {
     console.error('Error in invite-member function:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error.message, stack: error.stack }),
       { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }

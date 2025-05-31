@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -54,7 +53,7 @@ export default function Members() {
     enabled: !!profile?.organization_id && isAdmin,
   });
 
-  // Mutación para invitar miembro usando inviteUserByEmail
+  // Mutación para invitar miembro
   const inviteMemberMutation = useMutation({
     mutationFn: async (memberData: typeof createForm) => {
       console.log('Invitando miembro...', memberData);
@@ -65,25 +64,35 @@ export default function Members() {
         throw new Error('No hay sesión activa');
       }
 
-      const { data, error } = await supabase.functions.invoke('invite-member', {
-        body: {
+      console.log('Enviando datos al edge function:', {
+        email: memberData.email,
+        firstName: memberData.firstName,
+        lastName: memberData.lastName
+      });
+
+      const response = await supabase.functions.invoke('invite-member', {
+        body: JSON.stringify({
           email: memberData.email,
           firstName: memberData.firstName,
           lastName: memberData.lastName
-        },
+        }),
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json'
         }
       });
 
-      if (error) {
-        throw error;
+      console.log('Respuesta del edge function:', response);
+
+      if (response.error) {
+        console.error('Error en la respuesta:', response.error);
+        throw new Error(response.error.message || 'Error desconocido');
       }
       
-      return data;
+      return response.data;
     },
     onSuccess: (data) => {
+      console.log('Invitación enviada exitosamente:', data);
       toast({
         title: "Invitación enviada",
         description: `Se ha enviado una invitación por email a ${createForm.email}`,
