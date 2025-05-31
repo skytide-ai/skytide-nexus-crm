@@ -27,7 +27,7 @@ serve(async (req) => {
     );
 
     if (req.method === 'GET') {
-      // Validate invitation token
+      // Validate invitation token - NO AUTHORIZATION REQUIRED
       const url = new URL(req.url);
       const token = url.searchParams.get('token');
 
@@ -109,7 +109,7 @@ serve(async (req) => {
     }
 
     if (req.method === 'POST') {
-      // Accept invitation and create user
+      // Accept invitation and create user - NO AUTHORIZATION REQUIRED
       const { token, password }: AcceptInvitationRequest = await req.json();
 
       if (!token || !password) {
@@ -224,8 +224,8 @@ serve(async (req) => {
       JSON.stringify({ error: 'Error interno del servidor: ' + error.message }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500,
-    }
-  );
-}
+        status: 500,
+      }
+    );
+  }
 });
