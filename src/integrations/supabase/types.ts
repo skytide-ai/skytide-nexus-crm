@@ -9,6 +9,73 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      member_availability: {
+        Row: {
+          break_end_time: string | null
+          break_start_time: string | null
+          created_at: string
+          created_by: string
+          day_of_week: number
+          end_time: string
+          id: string
+          is_available: boolean
+          member_id: string
+          organization_id: string
+          start_time: string
+          updated_at: string
+        }
+        Insert: {
+          break_end_time?: string | null
+          break_start_time?: string | null
+          created_at?: string
+          created_by: string
+          day_of_week: number
+          end_time: string
+          id?: string
+          is_available?: boolean
+          member_id: string
+          organization_id: string
+          start_time: string
+          updated_at?: string
+        }
+        Update: {
+          break_end_time?: string | null
+          break_start_time?: string | null
+          created_at?: string
+          created_by?: string
+          day_of_week?: number
+          end_time?: string
+          id?: string
+          is_available?: boolean
+          member_id?: string
+          organization_id?: string
+          start_time?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_availability_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_availability_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_availability_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       member_invitations: {
         Row: {
           accepted_at: string | null
@@ -65,6 +132,193 @@ export type Database = {
           },
           {
             foreignKeyName: "member_invitations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      member_special_dates: {
+        Row: {
+          break_end_time: string | null
+          break_start_time: string | null
+          created_at: string
+          created_by: string
+          date: string
+          end_time: string | null
+          id: string
+          is_available: boolean
+          member_id: string
+          organization_id: string
+          reason: string | null
+          start_time: string | null
+          updated_at: string
+        }
+        Insert: {
+          break_end_time?: string | null
+          break_start_time?: string | null
+          created_at?: string
+          created_by: string
+          date: string
+          end_time?: string | null
+          id?: string
+          is_available?: boolean
+          member_id: string
+          organization_id: string
+          reason?: string | null
+          start_time?: string | null
+          updated_at?: string
+        }
+        Update: {
+          break_end_time?: string | null
+          break_start_time?: string | null
+          created_at?: string
+          created_by?: string
+          date?: string
+          end_time?: string | null
+          id?: string
+          is_available?: boolean
+          member_id?: string
+          organization_id?: string
+          reason?: string | null
+          start_time?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_special_dates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_special_dates_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_special_dates_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organization_availability: {
+        Row: {
+          break_end_time: string | null
+          break_start_time: string | null
+          created_at: string
+          created_by: string
+          day_of_week: number
+          end_time: string
+          id: string
+          is_available: boolean
+          organization_id: string
+          start_time: string
+          updated_at: string
+        }
+        Insert: {
+          break_end_time?: string | null
+          break_start_time?: string | null
+          created_at?: string
+          created_by: string
+          day_of_week: number
+          end_time: string
+          id?: string
+          is_available?: boolean
+          organization_id: string
+          start_time: string
+          updated_at?: string
+        }
+        Update: {
+          break_end_time?: string | null
+          break_start_time?: string | null
+          created_at?: string
+          created_by?: string
+          day_of_week?: number
+          end_time?: string
+          id?: string
+          is_available?: boolean
+          organization_id?: string
+          start_time?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_availability_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_availability_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organization_special_dates: {
+        Row: {
+          break_end_time: string | null
+          break_start_time: string | null
+          created_at: string
+          created_by: string
+          date: string
+          end_time: string | null
+          id: string
+          is_available: boolean
+          organization_id: string
+          reason: string | null
+          start_time: string | null
+          updated_at: string
+        }
+        Insert: {
+          break_end_time?: string | null
+          break_start_time?: string | null
+          created_at?: string
+          created_by: string
+          date: string
+          end_time?: string | null
+          id?: string
+          is_available?: boolean
+          organization_id: string
+          reason?: string | null
+          start_time?: string | null
+          updated_at?: string
+        }
+        Update: {
+          break_end_time?: string | null
+          break_start_time?: string | null
+          created_at?: string
+          created_by?: string
+          date?: string
+          end_time?: string | null
+          id?: string
+          is_available?: boolean
+          organization_id?: string
+          reason?: string | null
+          start_time?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_special_dates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_special_dates_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
