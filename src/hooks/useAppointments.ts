@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
+import { format, isAfter, isSameDay, parse } from 'date-fns';
 
 export interface AppointmentWithDetails {
   id: string;
@@ -13,7 +13,7 @@ export interface AppointmentWithDetails {
   appointment_date: string;
   start_time: string;
   end_time: string;
-  status: 'agendada' | 'confirmada' | 'cancelada' | 'no_asistida' | 'en_curso' | 'completada';
+  status: 'programada' | 'confirmada' | 'cancelada' | 'no_asistida' | 'en_curso' | 'completada';
   notes?: string;
   created_at: string;
   updated_at: string;
@@ -41,7 +41,7 @@ export interface CreateAppointmentData {
   start_time: string;
   end_time: string;
   notes?: string;
-  status?: 'agendada' | 'confirmada' | 'cancelada' | 'no_asistida' | 'en_curso' | 'completada';
+  status?: 'programada' | 'confirmada' | 'cancelada' | 'no_asistida' | 'en_curso' | 'completada';
 }
 
 export function useAppointments(date?: Date) {
@@ -103,11 +103,152 @@ export function useCreateAppointment() {
         throw new Error('Missing user profile data');
       }
 
+      // Validar que la fecha y hora sean futuras
+      const appointmentDateTime = new Date(`${appointmentData.appointment_date}T${appointmentData.start_time}`);
+      const now = new Date();
+      
+      if (!isAfter(appointmentDateTime, now)) {
+        throw new Error('No se puede agendar citas en el pasado. Selecciona una fecha y hora futuras.');
+      }
+
+      // Validar que el miembro esté activo
+      if (appointmentData.member_id) {
+        const { data: member, error: memberError } = await supabase
+          .from('profiles')
+          .select('is_active')
+          .eq('id', appointmentData.member_id)
+          .eq('organization_id', profile.organization_id)
+          .single();
+
+        if (memberError || !member || !member.is_active) {
+          throw new Error('El miembro seleccionado no está activo.');
+        }
+      }
+
+      // Validar que el servicio esté activo
+      if (appointmentData.service_id) {
+        const { data: service, error: serviceError } = await supabase
+          .from('services')
+          .select('is_active')
+          .eq('id', appointmentData.service_id)
+          .eq('organization_id', profile.organization_id)
+          .single();
+
+        if (serviceError || !service || !service.is_active) {
+          throw new Error('El servicio seleccionado no está activo.');
+        }
+      }
+
+      // Validar disponibilidad del miembro
+      if (appointmentData.member_id) {
+        const appointmentDate = new Date(appointmentData.appointment_date);
+        const dayOfWeek = appointmentDate.getDay();
+        
+        // Verificar disponibilidad regular del miembro
+        const { data: availability, error: availabilityError } = await supabase
+          .from('member_availability')
+          .select('*')
+          .eq('member_id', appointmentData.member_id)
+          .eq('day_of_week', dayOfWeek)
+          .eq('is_available', true)
+          .single();
+
+        if (availabilityError || !availability) {
+          throw new Error('El miembro no está disponible en este día de la semana.');
+        }
+
+        // Verificar que la hora esté dentro del horario disponible
+        const startTime = appointmentData.start_time;
+        const endTime = appointmentData.end_time;
+        
+        if (startTime < availability.start_time || endTime > availability.end_time) {
+          throw new Error('La hora seleccionada está fuera del horario disponible del miembro.');
+        }
+
+        // Verificar si hay descanso y la cita no interfiere
+        if (availability.break_start_time && availability.break_end_time) {
+          if (!(endTime <= availability.break_start_time || startTime >= availability.break_end_time)) {
+            throw new Error('La hora seleccionada interfiere con el horario de descanso del miembro.');
+          }
+        }
+
+        // Verificar fechas especiales del miembro
+        const { data: specialDate } = await supabase
+          .from('member_special_dates')
+          .select('*')
+          .eq('member_id', appointmentData.member_id)
+          .eq('date', appointmentData.appointment_date)
+          .single();
+
+        if (specialDate) {
+          if (!specialDate.is_available) {
+            throw new Error('El miembro no está disponible en esta fecha específica.');
+          }
+          
+          // Si tiene horario especial, validar contra ese horario
+          if (specialDate.start_time && specialDate.end_time) {
+            if (startTime < specialDate.start_time || endTime > specialDate.end_time) {
+              throw new Error('La hora seleccionada está fuera del horario especial del miembro para esta fecha.');
+            }
+          }
+        }
+      }
+
+      // Validar disponibilidad de la organización
+      const appointmentDate = new Date(appointmentData.appointment_date);
+      const dayOfWeek = appointmentDate.getDay();
+      
+      const { data: orgAvailability, error: orgAvailabilityError } = await supabase
+        .from('organization_availability')
+        .select('*')
+        .eq('organization_id', profile.organization_id)
+        .eq('day_of_week', dayOfWeek)
+        .eq('is_available', true)
+        .single();
+
+      if (orgAvailabilityError || !orgAvailability) {
+        throw new Error('La organización no está disponible en este día de la semana.');
+      }
+
+      // Verificar fechas especiales de la organización
+      const { data: orgSpecialDate } = await supabase
+        .from('organization_special_dates')
+        .select('*')
+        .eq('organization_id', profile.organization_id)
+        .eq('date', appointmentData.appointment_date)
+        .single();
+
+      if (orgSpecialDate && !orgSpecialDate.is_available) {
+        throw new Error('La organización no está disponible en esta fecha específica.');
+      }
+
+      // Verificar conflictos con otras citas del mismo miembro
+      if (appointmentData.member_id) {
+        const { data: existingAppointments, error: conflictError } = await supabase
+          .from('appointments')
+          .select('start_time, end_time')
+          .eq('member_id', appointmentData.member_id)
+          .eq('appointment_date', appointmentData.appointment_date)
+          .in('status', ['programada', 'confirmada', 'en_curso']);
+
+        if (conflictError) {
+          throw new Error('Error al verificar conflictos de horario.');
+        }
+
+        const hasConflict = existingAppointments?.some(apt => {
+          return !(appointmentData.end_time <= apt.start_time || appointmentData.start_time >= apt.end_time);
+        });
+
+        if (hasConflict) {
+          throw new Error('Ya existe una cita en este horario para el miembro seleccionado.');
+        }
+      }
+
       const { data, error } = await supabase
         .from('appointments')
         .insert({
           ...appointmentData,
-          status: appointmentData.status || 'agendada',
+          status: appointmentData.status || 'programada',
           organization_id: profile.organization_id,
           created_by: profile.id,
         })

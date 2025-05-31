@@ -25,7 +25,7 @@ export function CreateAppointmentDialog({ open, onOpenChange, selectedDate }: Cr
     start_time: '09:00',
     end_time: '10:00',
     notes: '',
-    status: 'agendada'
+    status: 'programada'
   });
   const [showCreateContact, setShowCreateContact] = useState(false);
   const [newContactData, setNewContactData] = useState({
@@ -101,7 +101,7 @@ export function CreateAppointmentDialog({ open, onOpenChange, selectedDate }: Cr
       start_time: '09:00',
       end_time: '10:00',
       notes: '',
-      status: 'agendada'
+      status: 'programada'
     });
     setShowCreateContact(false);
     setNewContactData({
