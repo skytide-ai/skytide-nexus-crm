@@ -47,7 +47,7 @@ export function useCreateContact() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (contactData: Partial<Contact>) => {
+    mutationFn: async (contactData: Omit<Contact, 'id' | 'organization_id' | 'created_at' | 'updated_at' | 'created_by'>) => {
       const { data: profile } = await supabase
         .from('profiles')
         .select('organization_id')
@@ -58,12 +58,28 @@ export function useCreateContact() {
         throw new Error('No se pudo obtener la organización del usuario');
       }
 
+      const user = (await supabase.auth.getUser()).data.user;
+      if (!user) {
+        throw new Error('Usuario no autenticado');
+      }
+
       const { data, error } = await supabase
         .from('contacts')
         .insert({
-          ...contactData,
+          first_name: contactData.first_name,
+          last_name: contactData.last_name,
+          phone: contactData.phone,
+          country_code: contactData.country_code,
+          email: contactData.email,
+          age: contactData.age,
+          gender: contactData.gender,
+          birth_date: contactData.birth_date,
+          address: contactData.address,
+          city: contactData.city,
+          document_type: contactData.document_type,
+          document_number: contactData.document_number,
           organization_id: profile.organization_id,
-          created_by: (await supabase.auth.getUser()).data.user?.id,
+          created_by: user.id,
         })
         .select()
         .single();
@@ -186,11 +202,17 @@ export function useCreateContactNote() {
 
   return useMutation({
     mutationFn: async (noteData: { contact_id: string; note: string }) => {
+      const user = (await supabase.auth.getUser()).data.user;
+      if (!user) {
+        throw new Error('Usuario no autenticado');
+      }
+
       const { data, error } = await supabase
         .from('contact_notes')
         .insert({
-          ...noteData,
-          created_by: (await supabase.auth.getUser()).data.user?.id,
+          contact_id: noteData.contact_id,
+          note: noteData.note,
+          created_by: user.id,
         })
         .select()
         .single();
@@ -262,7 +284,16 @@ export function useCreateAppointment() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (appointmentData: Partial<Appointment>) => {
+    mutationFn: async (appointmentData: {
+      contact_id: string;
+      appointment_date: string;
+      start_time: string;
+      end_time: string;
+      service_id?: string;
+      member_id?: string;
+      notes?: string;
+      status: 'programada' | 'confirmada' | 'completada' | 'cancelada' | 'no_asistio';
+    }) => {
       const { data: profile } = await supabase
         .from('profiles')
         .select('organization_id')
@@ -273,12 +304,24 @@ export function useCreateAppointment() {
         throw new Error('No se pudo obtener la organización del usuario');
       }
 
+      const user = (await supabase.auth.getUser()).data.user;
+      if (!user) {
+        throw new Error('Usuario no autenticado');
+      }
+
       const { data, error } = await supabase
         .from('appointments')
         .insert({
-          ...appointmentData,
+          contact_id: appointmentData.contact_id,
+          appointment_date: appointmentData.appointment_date,
+          start_time: appointmentData.start_time,
+          end_time: appointmentData.end_time,
+          service_id: appointmentData.service_id,
+          member_id: appointmentData.member_id,
+          notes: appointmentData.notes,
+          status: appointmentData.status,
           organization_id: profile.organization_id,
-          created_by: (await supabase.auth.getUser()).data.user?.id,
+          created_by: user.id,
         })
         .select()
         .single();

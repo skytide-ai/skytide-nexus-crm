@@ -29,7 +29,7 @@ export function CreateAppointmentDialog({ contact, open, onOpenChange }: CreateA
 
   const createAppointment = useCreateAppointment();
   const { data: services = [] } = useServices();
-  const { data: members = [] } = useMembers();
+  const { members } = useMembers();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

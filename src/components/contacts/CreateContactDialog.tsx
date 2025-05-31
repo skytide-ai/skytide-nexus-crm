@@ -23,11 +23,11 @@ export function CreateContactDialog({ open, onOpenChange }: CreateContactDialogP
     country_code: '+57',
     email: '',
     age: '',
-    gender: '',
+    gender: '' as '' | 'masculino' | 'femenino' | 'otro' | 'prefiero_no_decir',
     birth_date: '',
     address: '',
     city: '',
-    document_type: 'CC' as const,
+    document_type: 'CC' as 'CC' | 'NIT',
     document_number: '',
   });
 
@@ -41,13 +41,17 @@ export function CreateContactDialog({ open, onOpenChange }: CreateContactDialogP
     }
 
     const contactData = {
-      ...formData,
+      first_name: formData.first_name,
+      last_name: formData.last_name,
+      phone: formData.phone,
+      country_code: formData.country_code,
       age: formData.age ? parseInt(formData.age) : undefined,
       email: formData.email || undefined,
       gender: formData.gender || undefined,
       birth_date: formData.birth_date || undefined,
       address: formData.address || undefined,
       city: formData.city || undefined,
+      document_type: formData.document_type,
       document_number: formData.document_number || undefined,
     };
 
@@ -166,7 +170,7 @@ export function CreateContactDialog({ open, onOpenChange }: CreateContactDialogP
             
             <div className="space-y-2">
               <Label>Género</Label>
-              <Select value={formData.gender} onValueChange={(value) => setFormData(prev => ({ ...prev, gender: value }))}>
+              <Select value={formData.gender} onValueChange={(value: 'masculino' | 'femenino' | 'otro' | 'prefiero_no_decir') => setFormData(prev => ({ ...prev, gender: value }))}>
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar" />
                 </SelectTrigger>
