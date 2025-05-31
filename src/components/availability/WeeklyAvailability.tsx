@@ -81,13 +81,14 @@ export function WeeklyAvailability({
   };
 
   // Agrupar disponibilidad por día
-  const availabilityByDay = availability.reduce((acc, slot) => {
-    if (!acc[slot.day_of_week]) {
-      acc[slot.day_of_week] = [];
+  const availabilityByDay: Record<number, (MemberAvailability | OrganizationAvailability)[]> = {};
+  
+  availability.forEach(slot => {
+    if (!availabilityByDay[slot.day_of_week]) {
+      availabilityByDay[slot.day_of_week] = [];
     }
-    acc[slot.day_of_week].push(slot);
-    return acc;
-  }, {} as Record<number, (MemberAvailability | OrganizationAvailability)[]>);
+    availabilityByDay[slot.day_of_week].push(slot);
+  });
 
   return (
     <Card>
