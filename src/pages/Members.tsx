@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -53,21 +54,30 @@ export default function Members() {
     enabled: !!profile?.organization_id && isAdmin,
   });
 
-  // Mutación para invitar miembro usando invite-member edge function
+  // Mutación para invitar miembro usando inviteUserByEmail
   const inviteMemberMutation = useMutation({
     mutationFn: async (memberData: typeof createForm) => {
       console.log('Invitando miembro...', memberData);
       
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        throw new Error('No hay sesión activa');
+      }
+
       const { data, error } = await supabase.functions.invoke('invite-member', {
         body: {
           email: memberData.email,
           firstName: memberData.firstName,
           lastName: memberData.lastName
+        },
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
         }
       });
 
       if (error) {
-        console.error('Error from edge function:', error);
         throw error;
       }
       
