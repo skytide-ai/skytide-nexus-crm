@@ -13,7 +13,6 @@ interface CreateInvitationRequest {
   lastName: string;
 }
 
-// Función para generar token único
 function generateInvitationToken(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   let token = '';
@@ -31,7 +30,6 @@ serve(async (req) => {
   }
 
   try {
-    // Get authorization header
     const authHeader = req.headers.get('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       console.error('Missing or invalid authorization header');
@@ -46,16 +44,13 @@ serve(async (req) => {
 
     console.log('Authorization header found');
 
-    // Create Supabase client
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Extract JWT token
     const jwt = authHeader.replace('Bearer ', '');
     
-    // Verify user authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser(jwt);
     
     if (authError || !user) {
@@ -71,10 +66,9 @@ serve(async (req) => {
 
     console.log('User authenticated:', user.id);
 
-    // Get user profile
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('role, organization_id, first_name, last_name')
+      .select('role, organization_id')
       .eq('id', user.id)
       .single();
 
@@ -91,7 +85,6 @@ serve(async (req) => {
 
     console.log('Profile found:', profile.role, 'org:', profile.organization_id);
 
-    // Check admin permissions
     if (!['admin', 'superadmin'].includes(profile.role)) {
       console.error('Insufficient permissions:', profile.role);
       return new Response(
@@ -103,7 +96,6 @@ serve(async (req) => {
       );
     }
 
-    // Parse request body
     const { email, firstName, lastName }: CreateInvitationRequest = await req.json();
 
     if (!email || !firstName || !lastName) {
@@ -118,7 +110,6 @@ serve(async (req) => {
 
     console.log('Invitation data:', { email, firstName, lastName });
 
-    // Check if user already exists
     const { data: existingUser } = await supabase
       .from('profiles')
       .select('id')
@@ -136,7 +127,6 @@ serve(async (req) => {
       );
     }
 
-    // Check if there's already a pending invitation
     const { data: existingInvitation } = await supabase
       .from('member_invitations')
       .select('id')
@@ -157,11 +147,9 @@ serve(async (req) => {
       );
     }
 
-    // Generate unique token
     const token = generateInvitationToken();
     console.log('Generated invitation token');
 
-    // Create invitation record
     const { data: invitation, error: invitationError } = await supabase
       .from('member_invitations')
       .insert({
