@@ -45,6 +45,7 @@ function App() {
                       <Route path="/members" element={<Members />} />
                       <Route path="/services" element={<Services />} />
                       <Route path="/availability" element={<Availability />} />
+                      <Route path="/contacts" element={<Contacts />} />
                       <Route path="*" element={<NotFound />} />
                     </Routes>
                   </Layout>

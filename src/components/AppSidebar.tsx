@@ -7,6 +7,7 @@ import {
   Users,
   Wrench,
   Clock,
+  UserCheck,
 } from "lucide-react"
 
 import {
@@ -45,6 +46,12 @@ const menuItems = [
     title: "Disponibilidad",
     url: "/availability",
     icon: Clock,
+    roles: ["admin", "member", "superadmin"],
+  },
+  {
+    title: "Contactos",
+    url: "/contacts",
+    icon: UserCheck,
     roles: ["admin", "member", "superadmin"],
   },
   {
