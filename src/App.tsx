@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -10,6 +11,7 @@ import { Dashboard } from "./components/Dashboard";
 import Auth from "./pages/Auth";
 import SetPassword from "./pages/SetPassword";
 import Members from "./pages/Members";
+import Services from "./pages/Services";
 import AcceptInvitation from "./pages/AcceptInvitation";
 import NotFound from "./pages/NotFound";
 
@@ -58,7 +60,7 @@ const App = () => (
             <Route path="/services" element={
               <ProtectedRoute requiredRole="admin">
                 <Layout>
-                  <div className="text-center text-gray-500 py-20">Módulo de Servicios - En desarrollo</div>
+                  <Services />
                 </Layout>
               </ProtectedRoute>
             } />
