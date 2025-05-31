@@ -41,6 +41,12 @@ export function useServices() {
   return useQuery({
     queryKey: ['services', profile?.organization_id],
     queryFn: async () => {
+      console.log('Fetching services for organization:', profile?.organization_id);
+      
+      if (!profile?.organization_id) {
+        throw new Error('No organization ID found');
+      }
+
       const { data, error } = await supabase
         .from('services')
         .select(`
@@ -56,17 +62,24 @@ export function useServices() {
             )
           )
         `)
-        .eq('organization_id', profile?.organization_id)
+        .eq('organization_id', profile.organization_id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching services:', error);
+        throw error;
+      }
+
+      console.log('Services fetched successfully:', data?.length || 0, 'services');
 
       return data.map(service => ({
         ...service,
-        assigned_members: service.service_assignments.map((assignment: any) => assignment.profiles)
+        assigned_members: service.service_assignments?.map((assignment: any) => assignment.profiles).filter(Boolean) || []
       }));
     },
     enabled: !!profile?.organization_id,
+    staleTime: 30000, // Cache for 30 seconds
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -77,17 +90,28 @@ export function useCreateService() {
 
   return useMutation({
     mutationFn: async (data: CreateServiceData) => {
+      console.log('Creating service:', data);
+      
+      if (!profile?.organization_id || !profile?.id) {
+        throw new Error('Missing user profile data');
+      }
+
       const { data: service, error } = await supabase
         .from('services')
         .insert({
           ...data,
-          organization_id: profile?.organization_id,
-          created_by: profile?.id,
+          organization_id: profile.organization_id,
+          created_by: profile.id,
         })
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error creating service:', error);
+        throw error;
+      }
+      
+      console.log('Service created successfully:', service);
       return service;
     },
     onSuccess: () => {
@@ -97,10 +121,11 @@ export function useCreateService() {
         description: 'El servicio ha sido creado exitosamente.',
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      console.error('Service creation failed:', error);
       toast({
         title: 'Error',
-        description: 'No se pudo crear el servicio. Inténtalo de nuevo.',
+        description: error.message || 'No se pudo crear el servicio. Inténtalo de nuevo.',
         variant: 'destructive',
       });
     },
@@ -113,6 +138,8 @@ export function useUpdateService() {
 
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: UpdateServiceData }) => {
+      console.log('Updating service:', id, data);
+      
       const { data: service, error } = await supabase
         .from('services')
         .update({ ...data, updated_at: new Date().toISOString() })
@@ -120,7 +147,12 @@ export function useUpdateService() {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error updating service:', error);
+        throw error;
+      }
+      
+      console.log('Service updated successfully:', service);
       return service;
     },
     onSuccess: () => {
@@ -130,10 +162,11 @@ export function useUpdateService() {
         description: 'El servicio ha sido actualizado exitosamente.',
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      console.error('Service update failed:', error);
       toast({
         title: 'Error',
-        description: 'No se pudo actualizar el servicio. Inténtalo de nuevo.',
+        description: error.message || 'No se pudo actualizar el servicio. Inténtalo de nuevo.',
         variant: 'destructive',
       });
     },
@@ -146,12 +179,19 @@ export function useDeleteService() {
 
   return useMutation({
     mutationFn: async (serviceId: string) => {
+      console.log('Deleting service:', serviceId);
+      
       const { error } = await supabase
         .from('services')
         .delete()
         .eq('id', serviceId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error deleting service:', error);
+        throw error;
+      }
+      
+      console.log('Service deleted successfully');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['services'] });
@@ -160,10 +200,11 @@ export function useDeleteService() {
         description: 'El servicio ha sido eliminado exitosamente.',
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      console.error('Service deletion failed:', error);
       toast({
         title: 'Error',
-        description: 'No se pudo eliminar el servicio. Inténtalo de nuevo.',
+        description: error.message || 'No se pudo eliminar el servicio. Inténtalo de nuevo.',
         variant: 'destructive',
       });
     },
@@ -174,6 +215,8 @@ export function useServiceAssignments(serviceId: string) {
   return useQuery({
     queryKey: ['service-assignments', serviceId],
     queryFn: async () => {
+      console.log('Fetching service assignments for:', serviceId);
+      
       const { data, error } = await supabase
         .from('service_assignments')
         .select(`
@@ -190,7 +233,12 @@ export function useServiceAssignments(serviceId: string) {
         `)
         .eq('service_id', serviceId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching service assignments:', error);
+        throw error;
+      }
+      
+      console.log('Service assignments fetched:', data?.length || 0);
       return data;
     },
     enabled: !!serviceId,
@@ -204,15 +252,26 @@ export function useAssignMemberToService() {
 
   return useMutation({
     mutationFn: async ({ serviceId, memberId }: { serviceId: string; memberId: string }) => {
+      console.log('Assigning member to service:', { serviceId, memberId });
+      
+      if (!profile?.id) {
+        throw new Error('User profile not found');
+      }
+
       const { error } = await supabase
         .from('service_assignments')
         .insert({
           service_id: serviceId,
           member_id: memberId,
-          assigned_by: profile?.id,
+          assigned_by: profile.id,
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error assigning member:', error);
+        throw error;
+      }
+      
+      console.log('Member assigned successfully');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['services'] });
@@ -222,10 +281,11 @@ export function useAssignMemberToService() {
         description: 'El miembro ha sido asignado al servicio exitosamente.',
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      console.error('Member assignment failed:', error);
       toast({
         title: 'Error',
-        description: 'No se pudo asignar el miembro al servicio.',
+        description: error.message || 'No se pudo asignar el miembro al servicio.',
         variant: 'destructive',
       });
     },
@@ -238,13 +298,20 @@ export function useUnassignMemberFromService() {
 
   return useMutation({
     mutationFn: async ({ serviceId, memberId }: { serviceId: string; memberId: string }) => {
+      console.log('Unassigning member from service:', { serviceId, memberId });
+      
       const { error } = await supabase
         .from('service_assignments')
         .delete()
         .eq('service_id', serviceId)
         .eq('member_id', memberId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error unassigning member:', error);
+        throw error;
+      }
+      
+      console.log('Member unassigned successfully');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['services'] });
@@ -254,10 +321,11 @@ export function useUnassignMemberFromService() {
         description: 'El miembro ha sido removido del servicio exitosamente.',
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      console.error('Member unassignment failed:', error);
       toast({
         title: 'Error',
-        description: 'No se pudo remover el miembro del servicio.',
+        description: error.message || 'No se pudo remover el miembro del servicio.',
         variant: 'destructive',
       });
     },

@@ -1,11 +1,10 @@
 
 import React, { useState } from 'react';
-import { Plus, Search, Filter, MoreHorizontal, Edit, Trash2, Users } from 'lucide-react';
+import { Plus, Search, Users, AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Card, CardContent } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useServices } from '@/hooks/useServices';
 import { CreateServiceDialog } from '@/components/services/CreateServiceDialog';
 import { EditServiceDialog } from '@/components/services/EditServiceDialog';
@@ -15,8 +14,8 @@ import { ServiceCard } from '@/components/services/ServiceCard';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function Services() {
-  const { isAdmin, isSuperAdmin } = useAuth();
-  const { data: services, isLoading } = useServices();
+  const { isAdmin, isSuperAdmin, profile } = useAuth();
+  const { data: services, isLoading, error, refetch } = useServices();
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [editingService, setEditingService] = useState(null);
@@ -30,6 +29,16 @@ export default function Services() {
 
   const canManageServices = isAdmin || isSuperAdmin;
 
+  // Debug information
+  console.log('Services page state:', {
+    profile: profile?.id,
+    organizationId: profile?.organization_id,
+    role: profile?.role,
+    servicesCount: services?.length,
+    isLoading,
+    error: error?.message
+  });
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -41,13 +50,49 @@ export default function Services() {
     );
   }
 
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Servicios</h1>
+            <p className="text-gray-600 mt-1">Gestiona los servicios de tu organización</p>
+          </div>
+        </div>
+
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Error al cargar los servicios: {error.message}
+            <Button
+              variant="outline"
+              size="sm"
+              className="ml-2"
+              onClick={() => refetch()}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Reintentar
+            </Button>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Servicios</h1>
-          <p className="text-gray-600 mt-1">Gestiona los servicios de tu organización</p>
+          <p className="text-gray-600 mt-1">
+            Gestiona los servicios de tu organización
+            {services && (
+              <span className="text-sm text-gray-500 block">
+                {services.length} servicio{services.length !== 1 ? 's' : ''} encontrado{services.length !== 1 ? 's' : ''}
+              </span>
+            )}
+          </p>
         </div>
         {canManageServices && (
           <Button onClick={() => setShowCreateDialog(true)}>
@@ -56,6 +101,18 @@ export default function Services() {
           </Button>
         )}
       </div>
+
+      {/* Debug info for development */}
+      {process.env.NODE_ENV === 'development' && (
+        <Alert>
+          <AlertDescription>
+            <strong>Debug Info:</strong> Organización: {profile?.organization_id}, 
+            Usuario: {profile?.id}, 
+            Rol: {profile?.role},
+            Servicios cargados: {services?.length || 0}
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Search and Filters */}
       <div className="flex items-center gap-4">
@@ -68,6 +125,14 @@ export default function Services() {
             className="pl-10"
           />
         </div>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => refetch()}
+          title="Actualizar servicios"
+        >
+          <RefreshCw className="h-4 w-4" />
+        </Button>
       </div>
 
       {/* Services Grid */}
