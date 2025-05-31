@@ -11,7 +11,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { UserPlus, Edit, Trash2, Search, Mail } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { UserPlus, Edit, Trash2, Search, Mail, X, Clock } from 'lucide-react';
 
 interface MemberProfile {
   id: string;
@@ -22,6 +23,16 @@ interface MemberProfile {
   avatar_url: string | null;
   is_active: boolean;
   created_at: string;
+}
+
+interface MemberInvitation {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  expires_at: string;
+  created_at: string;
+  used: boolean;
 }
 
 export default function Members() {
@@ -49,6 +60,23 @@ export default function Members() {
 
       if (error) throw error;
       return data as MemberProfile[];
+    },
+    enabled: !!profile?.organization_id && isAdmin,
+  });
+
+  // Obtener invitaciones pendientes
+  const { data: invitations = [], isLoading: invitationsLoading } = useQuery({
+    queryKey: ['invitations', profile?.organization_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('member_invitations')
+        .select('*')
+        .eq('organization_id', profile?.organization_id)
+        .eq('used', false)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data as MemberInvitation[];
     },
     enabled: !!profile?.organization_id && isAdmin,
   });
@@ -105,12 +133,39 @@ export default function Members() {
       });
       setCreateForm({ email: '', firstName: '', lastName: '' });
       setIsCreateDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['invitations'] });
     },
     onError: (error: any) => {
       console.error('Error completo:', error);
       toast({
         title: "Error",
         description: error.message || "Error al enviar la invitación",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutación para revocar invitación
+  const revokeInvitationMutation = useMutation({
+    mutationFn: async (invitationId: string) => {
+      const { error } = await supabase
+        .from('member_invitations')
+        .delete()
+        .eq('id', invitationId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['invitations'] });
+      toast({
+        title: "Invitación revocada",
+        description: "La invitación ha sido revocada correctamente.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: "Error al revocar la invitación",
         variant: "destructive",
       });
     },
@@ -174,6 +229,12 @@ export default function Members() {
     member.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const filteredInvitations = invitations.filter(invitation =>
+    invitation.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    invitation.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    invitation.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     inviteMemberMutation.mutate(createForm);
@@ -190,6 +251,14 @@ export default function Members() {
     if (confirm('¿Estás seguro de que quieres eliminar este miembro?')) {
       deleteMemberMutation.mutate(memberId);
     }
+  };
+
+  const handleRevokeInvitation = (invitationId: string) => {
+    revokeInvitationMutation.mutate(invitationId);
+  };
+
+  const isExpired = (expiresAt: string) => {
+    return new Date(expiresAt) < new Date();
   };
 
   if (!isAdmin) {
@@ -291,7 +360,7 @@ export default function Members() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
             <Input
-              placeholder="Buscar miembros por nombre o email..."
+              placeholder="Buscar miembros o invitaciones por nombre o email..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
@@ -299,6 +368,108 @@ export default function Members() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Invitaciones pendientes */}
+      {invitations.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-orange-500" />
+              Invitaciones Pendientes
+            </CardTitle>
+            <CardDescription>
+              {filteredInvitations.length} invitación{filteredInvitations.length !== 1 ? 'es' : ''} pendiente{filteredInvitations.length !== 1 ? 's' : ''}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {invitationsLoading ? (
+              <div className="text-center py-8">Cargando invitaciones...</div>
+            ) : filteredInvitations.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                {searchTerm ? 'No se encontraron invitaciones con ese criterio' : 'No hay invitaciones pendientes'}
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Invitado</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead>Enviada</TableHead>
+                    <TableHead>Expira</TableHead>
+                    <TableHead>Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredInvitations.map((invitation) => (
+                    <TableRow key={invitation.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <Avatar>
+                            <AvatarFallback>
+                              {invitation.first_name[0]}{invitation.last_name[0]}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium">{invitation.first_name} {invitation.last_name}</p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>{invitation.email}</TableCell>
+                      <TableCell>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          isExpired(invitation.expires_at) 
+                            ? 'bg-red-100 text-red-800' 
+                            : 'bg-orange-100 text-orange-800'
+                        }`}>
+                          {isExpired(invitation.expires_at) ? 'Expirada' : 'Pendiente'}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        {new Date(invitation.created_at).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>
+                        {new Date(invitation.expires_at).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Revocar invitación</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                ¿Estás seguro de que quieres revocar la invitación para {invitation.first_name} {invitation.last_name}? 
+                                Esta acción no se puede deshacer.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction 
+                                onClick={() => handleRevokeInvitation(invitation.id)}
+                                className="bg-red-600 hover:bg-red-700"
+                              >
+                                Revocar
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Lista de miembros */}
       <Card>
