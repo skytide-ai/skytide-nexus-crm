@@ -25,7 +25,7 @@ import { SpecialDates } from '@/components/availability/SpecialDates';
 
 export function Availability() {
   const { profile } = useAuth();
-  const { data: members } = useMembers();
+  const { members } = useMembers();
   const [selectedMemberId, setSelectedMemberId] = useState<string | undefined>();
 
   const isAdmin = profile?.role === 'admin' || profile?.role === 'superadmin';

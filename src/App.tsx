@@ -5,15 +5,15 @@ import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { Layout } from '@/components/Layout';
-import { Auth } from '@/pages/Auth';
+import Auth from '@/pages/Auth';
 import { Dashboard } from '@/components/Dashboard';
-import { Members } from '@/pages/Members';
-import { Services } from '@/pages/Services';
+import Members from '@/pages/Members';
+import Services from '@/pages/Services';
 import { Availability } from '@/pages/Availability';
-import { AcceptInvitation } from '@/pages/AcceptInvitation';
-import { SetPassword } from '@/pages/SetPassword';
-import { NotFound } from '@/pages/NotFound';
-import { SystemAdmin } from '@/pages/SystemAdmin';
+import AcceptInvitation from '@/pages/AcceptInvitation';
+import SetPassword from '@/pages/SetPassword';
+import NotFound from '@/pages/NotFound';
+import SystemAdmin from '@/pages/SystemAdmin';
 
 const queryClient = new QueryClient({
   defaultOptions: {

@@ -80,8 +80,8 @@ export function WeeklyAvailability({
     return DAYS_OF_WEEK.find(day => day.value === dayOfWeek)?.label || 'Desconocido';
   };
 
-  // Agrupar disponibilidad por día
-  const availabilityByDay = availability.reduce((acc, slot) => {
+  // Agrupar disponibilidad por día - corrigiendo el tipo
+  const availabilityByDay: Record<number, typeof availability> = availability.reduce((acc, slot) => {
     if (!acc[slot.day_of_week]) {
       acc[slot.day_of_week] = [];
     }
