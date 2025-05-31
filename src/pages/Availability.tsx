@@ -224,8 +224,8 @@ export function Availability() {
             </Card>
           )}
 
-          {/* Member Availability */}
-          <div className="grid gap-6">
+          {/* Member Availability - Changed to grid layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <WeeklyAvailability
               availability={memberAvailability}
               onAdd={handleAddMemberAvailability}
@@ -265,7 +265,8 @@ export function Availability() {
             </Card>
           )}
 
-          <div className="grid gap-6">
+          {/* Organization Availability - Changed to grid layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <WeeklyAvailability
               availability={orgAvailability}
               onAdd={(data) => createOrgAvailability.mutate(data)}
