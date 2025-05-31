@@ -133,11 +133,11 @@ serve(async (req) => {
       .eq('id', profile.organization_id)
       .single();
 
-    // Get the origin from the request for redirect URL
-    const origin = req.headers.get('origin') || req.headers.get('referer')?.split('/').slice(0, 3).join('/');
-    const redirectUrl = `${origin}/set-password`;
+    // Use Supabase native reset password form instead of custom frontend page
+    // This ensures the user MUST set their password before being able to login
+    const redirectUrl = `https://fyyzaysmpephomhmudxt.supabase.co/auth/reset-password`;
     
-    console.log('Using redirect URL:', redirectUrl);
+    console.log('Using native Supabase redirect URL:', redirectUrl);
 
     // Step 1: Create user with confirmed email and temporary password
     console.log('Creating user with temporary password...');
@@ -167,8 +167,8 @@ serve(async (req) => {
 
     console.log('User created successfully:', newUser.user.id);
 
-    // Step 2: Send password reset email (this will force user to set their own password)
-    console.log('Sending password reset email...');
+    // Step 2: Send password reset email using native Supabase form
+    console.log('Sending password reset email with native Supabase form redirect...');
     const { error: resetError } = await supabaseAdmin.auth.resetPasswordForEmail(email, {
       redirectTo: redirectUrl
     });
@@ -184,13 +184,13 @@ serve(async (req) => {
       );
     }
 
-    console.log('Password reset email sent successfully');
+    console.log('Password reset email sent successfully to native Supabase form');
     console.log('=== Native member invitation completed successfully ===');
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'Invitación enviada correctamente. El usuario recibirá un email para establecer su contraseña y activar su cuenta.',
+        message: 'Invitación enviada correctamente. El usuario recibirá un email para establecer su contraseña en el formulario de Supabase y luego podrá iniciar sesión en la aplicación.',
         user_data: newUser
       }),
       {
