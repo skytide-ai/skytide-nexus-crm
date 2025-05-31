@@ -134,7 +134,7 @@ serve(async (req) => {
       .single();
 
     // Use Supabase native invitation system
-    const redirectUrl = `${req.headers.get('origin')}/auth`;
+    const redirectUrl = `${req.headers.get('origin')}/invite/accept`;
     
     const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
       email,

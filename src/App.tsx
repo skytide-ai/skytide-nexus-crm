@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -23,7 +24,7 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/auth" element={<Auth />} />
-            <Route path="/invite/:token" element={<AcceptInvitation />} />
+            <Route path="/invite/accept" element={<AcceptInvitation />} />
             <Route path="/" element={
               <ProtectedRoute>
                 <Layout>
