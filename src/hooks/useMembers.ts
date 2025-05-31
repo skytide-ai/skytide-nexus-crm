@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -120,69 +121,133 @@ export const useMembers = () => {
     },
   });
 
-  // Mutación para eliminar miembro - ahora elimina completamente la fila
+  // Mutación para eliminar miembro - con mejor manejo de errores
   const deleteMemberMutation = useMutation({
     mutationFn: async (memberId: string) => {
-      console.log('Eliminando miembro con ID:', memberId);
+      console.log('Iniciando eliminación de miembro con ID:', memberId);
       
-      const { error } = await supabase
+      // Primero verificar que el miembro existe
+      const { data: existingMember, error: fetchError } = await supabase
         .from('profiles')
-        .delete()
+        .select('id, email, first_name, last_name')
+        .eq('id', memberId)
+        .single();
+
+      if (fetchError) {
+        console.error('Error al buscar miembro:', fetchError);
+        throw new Error('No se pudo encontrar el miembro a eliminar');
+      }
+
+      console.log('Miembro encontrado:', existingMember);
+
+      // Realizar la eliminación
+      const { error: deleteError, count } = await supabase
+        .from('profiles')
+        .delete({ count: 'exact' })
         .eq('id', memberId);
 
-      if (error) {
-        console.error('Error al eliminar miembro:', error);
-        throw error;
+      if (deleteError) {
+        console.error('Error al eliminar miembro:', deleteError);
+        throw new Error(`Error al eliminar miembro: ${deleteError.message}`);
       }
+
+      console.log('Eliminación completada. Filas eliminadas:', count);
       
-      console.log('Miembro eliminado exitosamente');
+      if (count === 0) {
+        throw new Error('No se eliminó ningún registro. El miembro podría no existir.');
+      }
+
+      return { memberId, deletedMember: existingMember };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('Miembro eliminado exitosamente:', data);
+      
+      // Invalidar todas las queries relacionadas
       queryClient.invalidateQueries({ queryKey: ['members'] });
+      queryClient.invalidateQueries({ queryKey: ['profiles'] });
+      
+      // También actualizar manualmente el caché para una respuesta más inmediata
+      queryClient.setQueryData(['members', profile?.organization_id], (oldData: MemberProfile[] | undefined) => {
+        if (!oldData) return oldData;
+        return oldData.filter(member => member.id !== data.memberId);
+      });
+
       toast({
         title: "Miembro eliminado",
-        description: "El miembro ha sido eliminado completamente del sistema.",
+        description: `${data.deletedMember.first_name} ${data.deletedMember.last_name} ha sido eliminado del sistema.`,
       });
     },
     onError: (error: any) => {
       console.error('Error en deleteMemberMutation:', error);
       toast({
-        title: "Error",
-        description: "Error al eliminar el miembro: " + error.message,
+        title: "Error al eliminar miembro",
+        description: error.message || "Error desconocido al eliminar el miembro",
         variant: "destructive",
       });
     },
   });
 
-  // Mutación para cancelar invitación - ahora elimina completamente la fila
+  // Mutación para cancelar invitación - con mejor manejo de errores
   const cancelInvitationMutation = useMutation({
     mutationFn: async (invitationId: string) => {
-      console.log('Eliminando invitación con ID:', invitationId);
+      console.log('Iniciando eliminación de invitación con ID:', invitationId);
       
-      const { error } = await supabase
+      // Primero verificar que la invitación existe
+      const { data: existingInvitation, error: fetchError } = await supabase
         .from('member_invitations')
-        .delete()
+        .select('id, email, first_name, last_name')
+        .eq('id', invitationId)
+        .single();
+
+      if (fetchError) {
+        console.error('Error al buscar invitación:', fetchError);
+        throw new Error('No se pudo encontrar la invitación a eliminar');
+      }
+
+      console.log('Invitación encontrada:', existingInvitation);
+
+      // Realizar la eliminación
+      const { error: deleteError, count } = await supabase
+        .from('member_invitations')
+        .delete({ count: 'exact' })
         .eq('id', invitationId);
 
-      if (error) {
-        console.error('Error al eliminar invitación:', error);
-        throw error;
+      if (deleteError) {
+        console.error('Error al eliminar invitación:', deleteError);
+        throw new Error(`Error al eliminar invitación: ${deleteError.message}`);
       }
+
+      console.log('Eliminación completada. Filas eliminadas:', count);
       
-      console.log('Invitación eliminada exitosamente');
+      if (count === 0) {
+        throw new Error('No se eliminó ningún registro. La invitación podría no existir.');
+      }
+
+      return { invitationId, deletedInvitation: existingInvitation };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('Invitación eliminada exitosamente:', data);
+      
+      // Invalidar todas las queries relacionadas
       queryClient.invalidateQueries({ queryKey: ['pending-invitations'] });
+      queryClient.invalidateQueries({ queryKey: ['member_invitations'] });
+      
+      // También actualizar manualmente el caché
+      queryClient.setQueryData(['pending-invitations', profile?.organization_id], (oldData: any[] | undefined) => {
+        if (!oldData) return oldData;
+        return oldData.filter(invitation => invitation.id !== data.invitationId);
+      });
+
       toast({
         title: "Invitación eliminada",
-        description: "La invitación ha sido eliminada completamente del sistema.",
+        description: `La invitación para ${data.deletedInvitation.email} ha sido eliminada del sistema.`,
       });
     },
     onError: (error: any) => {
       console.error('Error en cancelInvitationMutation:', error);
       toast({
-        title: "Error",
-        description: "Error al eliminar la invitación: " + error.message,
+        title: "Error al eliminar invitación",
+        description: error.message || "Error desconocido al eliminar la invitación",
         variant: "destructive",
       });
     },
