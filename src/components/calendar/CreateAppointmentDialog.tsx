@@ -36,8 +36,8 @@ export function CreateAppointmentDialog({ open, onOpenChange, selectedDate }: Cr
   });
 
   const { members } = useMembers();
-  const { services } = useServices();
-  const { contacts } = useContacts();
+  const { data: services = [] } = useServices();
+  const { data: contacts = [] } = useContacts();
   const createAppointment = useCreateAppointment();
 
   const handleSubmit = async (e: React.FormEvent) => {
