@@ -25,6 +25,7 @@ const App = () => (
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/set-password" element={<SetPassword />} />
+            <Route path="/aceptar-invitacion" element={<AcceptInvitation />} />
             <Route path="/invite/accept" element={<AcceptInvitation />} />
             <Route path="/" element={
               <ProtectedRoute>

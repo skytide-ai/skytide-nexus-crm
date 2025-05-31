@@ -26,10 +26,27 @@ export const useMembers = () => {
     enabled: !!profile?.organization_id && isAdmin,
   });
 
-  // Mutación para invitar miembro - usando invite-member-native
+  // Obtener invitaciones pendientes
+  const { data: pendingInvitations = [], isLoading: invitationsLoading } = useQuery({
+    queryKey: ['pending-invitations', profile?.organization_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('member_invitations')
+        .select('*')
+        .eq('organization_id', profile?.organization_id)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!profile?.organization_id && isAdmin,
+  });
+
+  // Mutación para invitar miembro - usando send-invitation
   const inviteMemberMutation = useMutation({
     mutationFn: async (memberData: CreateMemberForm) => {
-      console.log('Enviando invitación nativa...', memberData);
+      console.log('Enviando invitación...', memberData);
       
       // Obtener el token de sesión actual
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -41,7 +58,7 @@ export const useMembers = () => {
 
       console.log('Session token available:', !!session.access_token);
       
-      const { data, error } = await supabase.functions.invoke('invite-member-native', {
+      const { data, error } = await supabase.functions.invoke('send-invitation', {
         body: {
           email: memberData.email,
           firstName: memberData.firstName,
@@ -66,7 +83,7 @@ export const useMembers = () => {
         title: "Invitación enviada",
         description: `Se ha enviado una invitación por email a ${variables.email}`,
       });
-      queryClient.invalidateQueries({ queryKey: ['members'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-invitations'] });
     },
     onError: (error: any) => {
       console.error('Error completo:', error);
@@ -130,11 +147,40 @@ export const useMembers = () => {
     },
   });
 
+  // Mutación para cancelar invitación
+  const cancelInvitationMutation = useMutation({
+    mutationFn: async (invitationId: string) => {
+      const { error } = await supabase
+        .from('member_invitations')
+        .update({ status: 'expired' })
+        .eq('id', invitationId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pending-invitations'] });
+      toast({
+        title: "Invitación cancelada",
+        description: "La invitación ha sido cancelada correctamente.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: "Error al cancelar la invitación",
+        variant: "destructive",
+      });
+    },
+  });
+
   return {
     members,
     membersLoading,
+    pendingInvitations,
+    invitationsLoading,
     inviteMemberMutation,
     updateMemberMutation,
     deleteMemberMutation,
+    cancelInvitationMutation,
   };
 };

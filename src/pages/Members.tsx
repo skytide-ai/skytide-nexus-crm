@@ -7,6 +7,7 @@ import { useMembers } from '@/hooks/useMembers';
 import { InviteMemberDialog } from '@/components/members/InviteMemberDialog';
 import { SearchMembers } from '@/components/members/SearchMembers';
 import { MembersTable } from '@/components/members/MembersTable';
+import { PendingInvitationsTable } from '@/components/members/PendingInvitationsTable';
 
 export default function Members() {
   const { isAdmin } = useAuth();
@@ -15,9 +16,12 @@ export default function Members() {
   const {
     members,
     membersLoading,
+    pendingInvitations,
+    invitationsLoading,
     inviteMemberMutation,
     updateMemberMutation,
     deleteMemberMutation,
+    cancelInvitationMutation,
   } = useMembers();
 
   const handleToggleActive = (memberId: string, isActive: boolean) => {
@@ -30,6 +34,12 @@ export default function Members() {
   const handleDeleteMember = (memberId: string) => {
     if (confirm('¿Estás seguro de que quieres eliminar este miembro?')) {
       deleteMemberMutation.mutate(memberId);
+    }
+  };
+
+  const handleCancelInvitation = (invitationId: string) => {
+    if (confirm('¿Estás seguro de que quieres cancelar esta invitación?')) {
+      cancelInvitationMutation.mutate(invitationId);
     }
   };
 
@@ -56,22 +66,29 @@ export default function Members() {
         />
       </div>
 
-      {/* Información sobre el sistema nativo */}
+      {/* Información sobre el nuevo sistema */}
       <Card className="bg-blue-50 border-blue-200">
         <CardContent className="p-4">
           <div className="flex items-center gap-3">
             <Mail className="h-5 w-5 text-blue-600" />
             <div>
               <p className="text-sm font-medium text-blue-900">
-                Sistema nativo de invitaciones
+                Sistema de invitaciones mejorado
               </p>
               <p className="text-xs text-blue-700">
-                Los nuevos miembros recibirán un email con un enlace seguro para activar su cuenta
+                Los nuevos miembros recibirán un email con un enlace seguro para crear su cuenta y elegir su contraseña
               </p>
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Invitaciones pendientes */}
+      <PendingInvitationsTable
+        invitations={pendingInvitations}
+        isLoading={invitationsLoading}
+        onCancelInvitation={handleCancelInvitation}
+      />
 
       {/* Búsqueda */}
       <SearchMembers searchTerm={searchTerm} onSearchChange={setSearchTerm} />
