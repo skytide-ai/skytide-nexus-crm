@@ -9,27 +9,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 
-interface InvitationData {
-  id: string;
-  email: string;
-  first_name: string;
-  last_name: string;
-  organization_id: string;
-  expires_at: string;
-}
-
 export default function AcceptInvitation() {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
   
-  const [invitation, setInvitation] = useState<InvitationData | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [email, setEmail] = useState('');
 
   useEffect(() => {
     const validateInvitation = async () => {
@@ -43,20 +34,16 @@ export default function AcceptInvitation() {
       console.log('Validating invitation with token:', token);
 
       try {
-        // Crear un cliente de Supabase sin autenticación para acceder a las invitaciones
-        const { data, error } = await supabase
-          .from('member_invitations')
-          .select('*')
-          .eq('token', token)
-          .eq('used', false)
-          .single();
-
-        console.log('Query result:', { data, error });
+        // Verificar el token de invitación usando la API de Supabase Auth
+        const { data, error } = await supabase.auth.verifyOtp({
+          token_hash: token,
+          type: 'invite'
+        });
 
         if (error) {
-          console.error('Error fetching invitation:', error);
-          if (error.code === 'PGRST116') {
-            setError('Invitación no encontrada o ya utilizada');
+          console.error('Error verifying invitation:', error);
+          if (error.message.includes('expired') || error.message.includes('invalid')) {
+            setError('El enlace de invitación ha expirado o no es válido');
           } else {
             setError('Error al validar la invitación: ' + error.message);
           }
@@ -64,27 +51,15 @@ export default function AcceptInvitation() {
           return;
         }
 
-        if (!data) {
-          console.log('No invitation data found');
-          setError('Invitación no encontrada');
+        if (data?.user?.email) {
+          setEmail(data.user.email);
+          console.log('Invitation is valid for email:', data.user.email);
+        } else {
+          setError('No se pudo obtener información de la invitación');
           setLoading(false);
           return;
         }
 
-        // Check if invitation has expired
-        const now = new Date();
-        const expiresAt = new Date(data.expires_at);
-        
-        console.log('Checking expiration:', { now, expiresAt, expired: expiresAt <= now });
-        
-        if (expiresAt <= now) {
-          setError('Esta invitación ha expirado');
-          setLoading(false);
-          return;
-        }
-
-        console.log('Invitation is valid:', data);
-        setInvitation(data);
       } catch (err) {
         console.error('Unexpected error:', err);
         setError('Error al validar la invitación');
@@ -99,7 +74,10 @@ export default function AcceptInvitation() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!invitation) return;
+    if (!email) {
+      setError('No se encontró información de la invitación');
+      return;
+    }
     
     if (password.length < 6) {
       setError('La contraseña debe tener al menos 6 caracteres');
@@ -115,43 +93,24 @@ export default function AcceptInvitation() {
     setError('');
 
     try {
-      // Create the user account
-      const { data: authData, error: signUpError } = await supabase.auth.signUp({
-        email: invitation.email,
-        password: password,
-        options: {
-          data: {
-            first_name: invitation.first_name,
-            last_name: invitation.last_name,
-            organization_id: invitation.organization_id,
-          }
-        }
+      // Aceptar la invitación estableciendo la contraseña
+      const { data: authData, error: acceptError } = await supabase.auth.updateUser({
+        password: password
       });
 
-      if (signUpError) {
-        console.error('SignUp error:', signUpError);
-        setError('Error al crear la cuenta: ' + signUpError.message);
+      if (acceptError) {
+        console.error('Error accepting invitation:', acceptError);
+        setError('Error al aceptar la invitación: ' + acceptError.message);
         return;
       }
 
       if (!authData.user) {
-        setError('Error al crear la cuenta');
+        setError('Error al procesar la invitación');
         return;
       }
 
-      // Mark invitation as used
-      const { error: updateError } = await supabase
-        .from('member_invitations')
-        .update({ used: true, updated_at: new Date().toISOString() })
-        .eq('id', invitation.id);
-
-      if (updateError) {
-        console.error('Error updating invitation:', updateError);
-        // Don't return here - user is created, just log the error
-      }
-
       toast({
-        title: "¡Cuenta creada exitosamente!",
+        title: "¡Invitación aceptada exitosamente!",
         description: "Bienvenido a la organización. Ya puedes acceder al sistema.",
       });
 
@@ -159,8 +118,8 @@ export default function AcceptInvitation() {
       navigate('/');
 
     } catch (err: any) {
-      console.error('Unexpected error during signup:', err);
-      setError('Error inesperado al crear la cuenta');
+      console.error('Unexpected error during invitation acceptance:', err);
+      setError('Error inesperado al aceptar la invitación');
     } finally {
       setSubmitting(false);
     }
@@ -177,7 +136,7 @@ export default function AcceptInvitation() {
     );
   }
 
-  if (error && !invitation) {
+  if (error && !email) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <Card className="w-full max-w-md">
@@ -201,7 +160,7 @@ export default function AcceptInvitation() {
         <CardHeader>
           <CardTitle>Aceptar Invitación</CardTitle>
           <CardDescription>
-            Has sido invitado a unirte como <strong>{invitation?.first_name} {invitation?.last_name}</strong>
+            Has sido invitado a unirte como miembro de la organización
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -211,7 +170,7 @@ export default function AcceptInvitation() {
               <Input
                 id="email"
                 type="email"
-                value={invitation?.email || ''}
+                value={email}
                 disabled
                 className="bg-gray-50"
               />
@@ -268,10 +227,10 @@ export default function AcceptInvitation() {
               {submitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creando cuenta...
+                  Aceptando invitación...
                 </>
               ) : (
-                'Crear Cuenta'
+                'Aceptar Invitación'
               )}
             </Button>
           </form>
