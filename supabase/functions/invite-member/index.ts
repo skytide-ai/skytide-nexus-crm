@@ -91,12 +91,40 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Parse request body
-    const { email, firstName, lastName }: InviteMemberRequest = await req.json();
-    console.log('Invite request for:', email, firstName, lastName);
+    // Parse request body with better error handling
+    let requestBody;
+    try {
+      const bodyText = await req.text();
+      console.log('Raw body text received:', bodyText);
+      console.log('Body length:', bodyText.length);
+      
+      if (!bodyText || bodyText.trim() === '') {
+        console.log('Empty or whitespace-only body received');
+        return new Response(
+          JSON.stringify({ error: 'Request body is required and cannot be empty' }),
+          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+      
+      requestBody = JSON.parse(bodyText);
+      console.log('Successfully parsed JSON:', requestBody);
+    } catch (parseError) {
+      console.error('JSON parsing failed:', parseError);
+      console.error('Parse error details:', parseError.message);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Invalid JSON format in request body', 
+          details: parseError.message 
+        }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    const { email, firstName, lastName }: InviteMemberRequest = requestBody;
+    console.log('Extracted data - Email:', email, 'FirstName:', firstName, 'LastName:', lastName);
 
     if (!email || !firstName || !lastName) {
-      console.log('Missing required fields:', { email, firstName, lastName });
+      console.log('Missing required fields:', { email: !!email, firstName: !!firstName, lastName: !!lastName });
       return new Response(
         JSON.stringify({ error: 'Email, firstName, and lastName are required' }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }

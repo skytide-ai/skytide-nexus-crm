@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -65,32 +64,38 @@ export default function Members() {
         throw new Error('No hay sesión activa');
       }
 
-      console.log('Enviando datos al edge function:', {
+      const requestBody = {
         email: memberData.email,
         firstName: memberData.firstName,
         lastName: memberData.lastName
-      });
+      };
 
-      const response = await supabase.functions.invoke('invite-member', {
-        body: {
-          email: memberData.email,
-          firstName: memberData.firstName,
-          lastName: memberData.lastName
-        },
+      console.log('Enviando petición con body:', requestBody);
+
+      // Usar fetch directamente en lugar de supabase.functions.invoke
+      const response = await fetch(`https://fyyzaysmpephomhmudxt.supabase.co/functions/v1/invite-member`, {
+        method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        }
+          'Content-Type': 'application/json',
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ5eXpheXNtcGVwaG9taG11ZHh0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg2Mzc4MzEsImV4cCI6MjA2NDIxMzgzMX0.4Y9ZxRANOQmmKEbVmmsA5ZMrQcbdOzs2XgvcizR3ZJQ'
+        },
+        body: JSON.stringify(requestBody)
       });
 
-      console.log('Respuesta del edge function:', response);
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
 
-      if (response.error) {
-        console.error('Error en la respuesta:', response.error);
-        throw new Error(response.error.message || 'Error desconocido');
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
+
+      const data = await response.json();
+      console.log('Respuesta del edge function:', data);
       
-      return response.data;
+      return data;
     },
     onSuccess: (data) => {
       console.log('Invitación enviada exitosamente:', data);
