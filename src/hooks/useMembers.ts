@@ -52,12 +52,25 @@ export const useMembers = () => {
     mutationFn: async (memberData: CreateMemberForm) => {
       console.log('Enviando invitación...', memberData);
       
+      // Obtener el token de sesión actual
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session?.access_token) {
+        console.error('Error getting session:', sessionError);
+        throw new Error('No se pudo obtener la sesión de usuario');
+      }
+
+      console.log('Session token available:', !!session.access_token);
+      
       const { data, error } = await supabase.functions.invoke('send-member-invitation', {
         body: {
           email: memberData.email,
           firstName: memberData.firstName,
           lastName: memberData.lastName
-        }
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
       });
 
       if (error) {
