@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -102,30 +101,6 @@ export function useCreateAppointment() {
     mutationFn: async (appointmentData: CreateAppointmentData) => {
       if (!profile?.organization_id || !profile?.id) {
         throw new Error('Missing user profile data');
-      }
-
-      // Validar disponibilidad usando la función de base de datos
-      if (appointmentData.member_id) {
-        // Usar una llamada RPC más flexible para evitar problemas de tipos
-        const { data: isAvailable, error: availabilityError } = await supabase.rpc(
-          'check_appointment_availability' as any,
-          {
-            p_member_id: appointmentData.member_id,
-            p_appointment_date: appointmentData.appointment_date,
-            p_start_time: appointmentData.start_time,
-            p_end_time: appointmentData.end_time,
-            p_organization_id: profile.organization_id
-          }
-        );
-
-        if (availabilityError) {
-          console.error('Error checking availability:', availabilityError);
-          throw new Error('Error al validar la disponibilidad');
-        }
-
-        if (!isAvailable) {
-          throw new Error('El miembro no está disponible en el horario seleccionado');
-        }
       }
 
       const { data, error } = await supabase

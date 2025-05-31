@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,6 +40,45 @@ export function CreateAppointmentDialog({ open, onOpenChange, selectedDate }: Cr
   const { data: contacts = [] } = useContacts();
   const createAppointment = useCreateAppointment();
 
+  // Filtrar servicios por miembro seleccionado
+  const getAvailableServices = () => {
+    if (!formData.member_id) {
+      return services.filter(s => s.is_active);
+    }
+    
+    return services.filter(s => 
+      s.is_active && 
+      s.assigned_members?.some(member => member.id === formData.member_id)
+    );
+  };
+
+  // Calcular hora de fin automáticamente cuando cambia el servicio o la hora de inicio
+  useEffect(() => {
+    if (formData.service_id && formData.start_time) {
+      const service = services.find(s => s.id === formData.service_id);
+      if (service) {
+        const startTime = new Date(`2000-01-01T${formData.start_time}:00`);
+        const endTime = new Date(startTime.getTime() + service.duration_minutes * 60000);
+        const endTimeString = endTime.toTimeString().slice(0, 5);
+        
+        setFormData(prev => ({
+          ...prev,
+          end_time: endTimeString
+        }));
+      }
+    }
+  }, [formData.service_id, formData.start_time, services]);
+
+  // Limpiar servicio seleccionado cuando cambia el miembro
+  useEffect(() => {
+    if (formData.member_id) {
+      const availableServices = getAvailableServices();
+      if (formData.service_id && !availableServices.find(s => s.id === formData.service_id)) {
+        setFormData(prev => ({ ...prev, service_id: undefined }));
+      }
+    }
+  }, [formData.member_id]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -47,9 +86,13 @@ export function CreateAppointmentDialog({ open, onOpenChange, selectedDate }: Cr
       return;
     }
 
-    await createAppointment.mutateAsync(formData as CreateAppointmentData);
-    onOpenChange(false);
-    resetForm();
+    try {
+      await createAppointment.mutateAsync(formData as CreateAppointmentData);
+      onOpenChange(false);
+      resetForm();
+    } catch (error) {
+      console.error('Error creating appointment:', error);
+    }
   };
 
   const resetForm = () => {
@@ -69,23 +112,7 @@ export function CreateAppointmentDialog({ open, onOpenChange, selectedDate }: Cr
     });
   };
 
-  // Calcular hora de fin automáticamente basada en duración del servicio
-  const handleServiceChange = (serviceId: string) => {
-    const service = services.find(s => s.id === serviceId);
-    if (service && formData.start_time) {
-      const startTime = new Date(`2000-01-01T${formData.start_time}:00`);
-      const endTime = new Date(startTime.getTime() + service.duration_minutes * 60000);
-      const endTimeString = endTime.toTimeString().slice(0, 5);
-      
-      setFormData(prev => ({
-        ...prev,
-        service_id: serviceId,
-        end_time: endTimeString
-      }));
-    } else {
-      setFormData(prev => ({ ...prev, service_id: serviceId }));
-    }
-  };
+  const availableServices = getAvailableServices();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -104,29 +131,6 @@ export function CreateAppointmentDialog({ open, onOpenChange, selectedDate }: Cr
               onChange={(e) => setFormData(prev => ({ ...prev, appointment_date: e.target.value }))}
               required
             />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="start_time">Hora inicio</Label>
-              <Input
-                id="start_time"
-                type="time"
-                value={formData.start_time}
-                onChange={(e) => setFormData(prev => ({ ...prev, start_time: e.target.value }))}
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor="end_time">Hora fin</Label>
-              <Input
-                id="end_time"
-                type="time"
-                value={formData.end_time}
-                onChange={(e) => setFormData(prev => ({ ...prev, end_time: e.target.value }))}
-                required
-              />
-            </div>
           </div>
 
           <div>
@@ -153,19 +157,40 @@ export function CreateAppointmentDialog({ open, onOpenChange, selectedDate }: Cr
             <Label>Servicio</Label>
             <Select
               value={formData.service_id}
-              onValueChange={handleServiceChange}
+              onValueChange={(value) => setFormData(prev => ({ ...prev, service_id: value }))}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Seleccionar servicio (opcional)" />
               </SelectTrigger>
               <SelectContent>
-                {services.filter(s => s.is_active).map((service) => (
+                {availableServices.map((service) => (
                   <SelectItem key={service.id} value={service.id}>
                     {service.name} ({service.duration_minutes} min)
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {formData.member_id && availableServices.length === 0 && (
+              <p className="text-sm text-gray-500 mt-1">
+                Este miembro no tiene servicios asignados
+              </p>
+            )}
+          </div>
+
+          <div>
+            <Label htmlFor="start_time">Hora inicio</Label>
+            <Input
+              id="start_time"
+              type="time"
+              value={formData.start_time}
+              onChange={(e) => setFormData(prev => ({ ...prev, start_time: e.target.value }))}
+              required
+            />
+            {formData.service_id && formData.end_time && (
+              <p className="text-sm text-gray-500 mt-1">
+                Fin estimado: {formData.end_time}
+              </p>
+            )}
           </div>
 
           <div>
