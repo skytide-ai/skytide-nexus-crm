@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -130,6 +129,14 @@ export default function AcceptInvitation() {
     }
   };
 
+  const isFormDisabled = status === 'creating';
+  const showLoadingSpinner = status === 'loading';
+  const showForm = status === 'form' && invitation;
+  const showCreatingSpinner = status === 'creating';
+  const showSuccess = status === 'success';
+  const showError = status === 'error';
+  const showNavigationButton = status === 'error' || status === 'success';
+
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
@@ -138,21 +145,21 @@ export default function AcceptInvitation() {
             <UserPlus className="mx-auto h-12 w-12 text-blue-600" />
             <CardTitle className="text-2xl font-bold">Aceptar Invitación</CardTitle>
             <CardDescription>
-              {status === 'form' && invitation ? 
+              {showForm ? 
                 `Crear cuenta para ${invitation.organizationName}` :
                 'Procesando tu invitación...'
               }
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {status === 'loading' && (
+            {showLoadingSpinner && (
               <div className="flex items-center justify-center py-4">
                 <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
                 <span className="ml-2">Validando invitación...</span>
               </div>
             )}
 
-            {status === 'form' && invitation && (
+            {showForm && (
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
@@ -217,8 +224,8 @@ export default function AcceptInvitation() {
                   </Alert>
                 )}
 
-                <Button type="submit" className="w-full" disabled={status === 'creating'}>
-                  {status === 'creating' ? (
+                <Button type="submit" className="w-full" disabled={isFormDisabled}>
+                  {isFormDisabled ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Creando cuenta...
@@ -230,14 +237,14 @@ export default function AcceptInvitation() {
               </form>
             )}
 
-            {status === 'creating' && (
+            {showCreatingSpinner && (
               <div className="flex items-center justify-center py-4">
                 <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
                 <span className="ml-2">Creando tu cuenta...</span>
               </div>
             )}
 
-            {status === 'success' && (
+            {showSuccess && (
               <Alert className="border-green-200 bg-green-50">
                 <CheckCircle className="h-4 w-4 text-green-600" />
                 <AlertDescription className="text-green-800">
@@ -246,7 +253,7 @@ export default function AcceptInvitation() {
               </Alert>
             )}
 
-            {status === 'error' && (
+            {showError && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
@@ -255,7 +262,7 @@ export default function AcceptInvitation() {
               </Alert>
             )}
 
-            {(status === 'error' || status === 'success') && (
+            {showNavigationButton && (
               <div className="text-center">
                 <Button
                   variant="outline"
