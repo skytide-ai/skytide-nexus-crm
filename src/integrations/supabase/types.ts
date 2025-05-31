@@ -9,63 +9,6 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      member_invitations: {
-        Row: {
-          created_at: string
-          email: string
-          expires_at: string
-          first_name: string
-          id: string
-          invited_by: string
-          last_name: string
-          organization_id: string
-          token: string
-          updated_at: string
-          used: boolean | null
-        }
-        Insert: {
-          created_at?: string
-          email: string
-          expires_at?: string
-          first_name: string
-          id?: string
-          invited_by: string
-          last_name: string
-          organization_id: string
-          token: string
-          updated_at?: string
-          used?: boolean | null
-        }
-        Update: {
-          created_at?: string
-          email?: string
-          expires_at?: string
-          first_name?: string
-          id?: string
-          invited_by?: string
-          last_name?: string
-          organization_id?: string
-          token?: string
-          updated_at?: string
-          used?: boolean | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "member_invitations_invited_by_fkey"
-            columns: ["invited_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "member_invitations_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       organizations: {
         Row: {
           created_at: string

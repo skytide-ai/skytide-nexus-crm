@@ -10,16 +10,6 @@ export interface MemberProfile {
   created_at: string;
 }
 
-export interface MemberInvitation {
-  id: string;
-  email: string;
-  first_name: string;
-  last_name: string;
-  expires_at: string;
-  created_at: string;
-  used: boolean;
-}
-
 export interface CreateMemberForm {
   email: string;
   firstName: string;

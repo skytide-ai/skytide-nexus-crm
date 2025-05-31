@@ -1,7 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { Resend } from "npm:resend@2.0.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -15,7 +14,7 @@ interface InvitationRequest {
 }
 
 serve(async (req) => {
-  console.log('=== Member invitation function started ===');
+  console.log('=== Native member invitation function started ===');
   
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -40,13 +39,13 @@ serve(async (req) => {
     // Extract the JWT token from the header
     const token = authHeader.replace('Bearer ', '');
 
-    // Create admin client for database operations
+    // Create admin client for all operations
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Verify user authentication by passing the token explicitly
+    // Verify user authentication
     const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
     
     if (authError || !user) {
@@ -62,7 +61,7 @@ serve(async (req) => {
 
     console.log('User authenticated:', user.id);
 
-    // Get user profile using admin client
+    // Get user profile
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('role, organization_id, first_name, last_name')
@@ -127,35 +126,6 @@ serve(async (req) => {
       );
     }
 
-    // Generate invitation token
-    const token_invitation = crypto.randomUUID();
-    console.log('Generated token:', token_invitation);
-
-    // Create invitation
-    const { error: inviteError } = await supabaseAdmin
-      .from('member_invitations')
-      .insert({
-        organization_id: profile.organization_id,
-        email,
-        first_name: firstName,
-        last_name: lastName,
-        invited_by: user.id,
-        token: token_invitation
-      });
-
-    if (inviteError) {
-      console.error('Error creating invitation:', inviteError);
-      return new Response(
-        JSON.stringify({ error: 'Error al crear la invitación: ' + inviteError.message }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 400,
-        }
-      );
-    }
-
-    console.log('Invitation created successfully');
-
     // Get organization name
     const { data: organization } = await supabaseAdmin
       .from('organizations')
@@ -163,50 +133,27 @@ serve(async (req) => {
       .eq('id', profile.organization_id)
       .single();
 
-    // Send email using Resend
-    const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
-    const inviteUrl = `${req.headers.get('origin')}/invite/${token_invitation}`;
+    // Use Supabase native invitation system
+    const redirectUrl = `${req.headers.get('origin')}/auth`;
+    
+    const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+      email,
+      {
+        redirectTo: redirectUrl,
+        data: {
+          first_name: firstName,
+          last_name: lastName,
+          organization_id: profile.organization_id,
+          invited_by: profile.first_name + ' ' + profile.last_name,
+          organization_name: organization?.name || 'la organización'
+        }
+      }
+    );
 
-    console.log('Sending email to:', email);
-
-    const { error: emailError } = await resend.emails.send({
-      from: 'Skytide CRM <noreply@updates.skytidecrm.com>',
-      to: [email],
-      subject: `Invitación a ${organization?.name || 'la organización'}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #2563eb;">¡Has sido invitado a unirte a ${organization?.name || 'la organización'}!</h2>
-          
-          <p>Hola ${firstName},</p>
-          
-          <p>${profile.first_name} ${profile.last_name} te ha invitado a formar parte de <strong>${organization?.name || 'la organización'}</strong> en Skytide CRM.</p>
-          
-          <div style="margin: 30px 0;">
-            <a href="${inviteUrl}" 
-               style="background-color: #2563eb; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">
-              Aceptar Invitación
-            </a>
-          </div>
-          
-          <p style="color: #666; font-size: 14px;">
-            Si no puedes hacer clic en el botón, copia y pega este enlace en tu navegador:<br>
-            <a href="${inviteUrl}">${inviteUrl}</a>
-          </p>
-          
-          <p style="color: #666; font-size: 14px;">
-            Esta invitación expira en 7 días. Si no solicitaste esta invitación, puedes ignorar este email.
-          </p>
-          
-          <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-          <p style="color: #999; font-size: 12px;">Skytide CRM - Sistema de gestión empresarial</p>
-        </div>
-      `,
-    });
-
-    if (emailError) {
-      console.error('Error sending email:', emailError);
+    if (inviteError) {
+      console.error('Error sending invitation:', inviteError);
       return new Response(
-        JSON.stringify({ error: 'Error al enviar el email: ' + emailError.message }),
+        JSON.stringify({ error: 'Error al enviar la invitación: ' + inviteError.message }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 400,
@@ -214,8 +161,8 @@ serve(async (req) => {
       );
     }
 
-    console.log('Email sent successfully');
-    console.log('=== Member invitation completed successfully ===');
+    console.log('Invitation sent successfully:', inviteData);
+    console.log('=== Native member invitation completed successfully ===');
 
     return new Response(
       JSON.stringify({ success: true, message: 'Invitación enviada correctamente' }),

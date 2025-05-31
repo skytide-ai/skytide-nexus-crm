@@ -6,7 +6,6 @@ import { Mail } from 'lucide-react';
 import { useMembers } from '@/hooks/useMembers';
 import { InviteMemberDialog } from '@/components/members/InviteMemberDialog';
 import { SearchMembers } from '@/components/members/SearchMembers';
-import { InvitationsTable } from '@/components/members/InvitationsTable';
 import { MembersTable } from '@/components/members/MembersTable';
 
 export default function Members() {
@@ -16,10 +15,7 @@ export default function Members() {
   const {
     members,
     membersLoading,
-    invitations,
-    invitationsLoading,
     inviteMemberMutation,
-    revokeInvitationMutation,
     updateMemberMutation,
     deleteMemberMutation,
   } = useMembers();
@@ -35,10 +31,6 @@ export default function Members() {
     if (confirm('¿Estás seguro de que quieres eliminar este miembro?')) {
       deleteMemberMutation.mutate(memberId);
     }
-  };
-
-  const handleRevokeInvitation = (invitationId: string) => {
-    revokeInvitationMutation.mutate(invitationId);
   };
 
   if (!isAdmin) {
@@ -64,17 +56,17 @@ export default function Members() {
         />
       </div>
 
-      {/* Información sobre el nuevo sistema */}
+      {/* Información sobre el sistema nativo */}
       <Card className="bg-blue-50 border-blue-200">
         <CardContent className="p-4">
           <div className="flex items-center gap-3">
             <Mail className="h-5 w-5 text-blue-600" />
             <div>
               <p className="text-sm font-medium text-blue-900">
-                Sistema de invitaciones por email
+                Sistema nativo de invitaciones
               </p>
               <p className="text-xs text-blue-700">
-                Los nuevos miembros recibirán un email con un enlace para crear su cuenta
+                Los nuevos miembros recibirán un email con un enlace seguro para activar su cuenta
               </p>
             </div>
           </div>
@@ -83,14 +75,6 @@ export default function Members() {
 
       {/* Búsqueda */}
       <SearchMembers searchTerm={searchTerm} onSearchChange={setSearchTerm} />
-
-      {/* Invitaciones pendientes */}
-      <InvitationsTable
-        invitations={invitations}
-        isLoading={invitationsLoading}
-        searchTerm={searchTerm}
-        onRevokeInvitation={handleRevokeInvitation}
-      />
 
       {/* Lista de miembros */}
       <MembersTable

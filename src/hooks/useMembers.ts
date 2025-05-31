@@ -1,8 +1,9 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { MemberProfile, MemberInvitation, CreateMemberForm } from '@/types/member';
+import { MemberProfile, CreateMemberForm } from '@/types/member';
 
 export const useMembers = () => {
   const { profile, isAdmin } = useAuth();
@@ -25,32 +26,10 @@ export const useMembers = () => {
     enabled: !!profile?.organization_id && isAdmin,
   });
 
-  // Obtener invitaciones pendientes
-  const { data: invitations = [], isLoading: invitationsLoading } = useQuery({
-    queryKey: ['invitations', profile?.organization_id],
-    queryFn: async () => {
-      console.log('Fetching invitations for organization:', profile?.organization_id);
-      const { data, error } = await supabase
-        .from('member_invitations')
-        .select('*')
-        .eq('organization_id', profile?.organization_id)
-        .eq('used', false)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching invitations:', error);
-        throw error;
-      }
-      console.log('Fetched invitations:', data);
-      return data as MemberInvitation[];
-    },
-    enabled: !!profile?.organization_id && isAdmin,
-  });
-
-  // Mutación para invitar miembro - usando send-member-invitation
+  // Mutación para invitar miembro - usando invite-member-native
   const inviteMemberMutation = useMutation({
     mutationFn: async (memberData: CreateMemberForm) => {
-      console.log('Enviando invitación...', memberData);
+      console.log('Enviando invitación nativa...', memberData);
       
       // Obtener el token de sesión actual
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -62,7 +41,7 @@ export const useMembers = () => {
 
       console.log('Session token available:', !!session.access_token);
       
-      const { data, error } = await supabase.functions.invoke('send-member-invitation', {
+      const { data, error } = await supabase.functions.invoke('invite-member-native', {
         body: {
           email: memberData.email,
           firstName: memberData.firstName,
@@ -87,39 +66,13 @@ export const useMembers = () => {
         title: "Invitación enviada",
         description: `Se ha enviado una invitación por email a ${variables.email}`,
       });
-      queryClient.invalidateQueries({ queryKey: ['invitations'] });
+      queryClient.invalidateQueries({ queryKey: ['members'] });
     },
     onError: (error: any) => {
       console.error('Error completo:', error);
       toast({
         title: "Error",
         description: error.message || "Error al enviar la invitación",
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Mutación para revocar invitación
-  const revokeInvitationMutation = useMutation({
-    mutationFn: async (invitationId: string) => {
-      const { error } = await supabase
-        .from('member_invitations')
-        .delete()
-        .eq('id', invitationId);
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['invitations'] });
-      toast({
-        title: "Invitación revocada",
-        description: "La invitación ha sido revocada correctamente.",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: "Error al revocar la invitación",
         variant: "destructive",
       });
     },
@@ -180,10 +133,7 @@ export const useMembers = () => {
   return {
     members,
     membersLoading,
-    invitations,
-    invitationsLoading,
     inviteMemberMutation,
-    revokeInvitationMutation,
     updateMemberMutation,
     deleteMemberMutation,
   };
