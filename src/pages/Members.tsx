@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { UserPlus, Edit, Trash2, Search, Copy, Eye, EyeOff, ExternalLink, Clock } from 'lucide-react';
+import { UserPlus, Edit, Trash2, Search, Mail } from 'lucide-react';
 
 interface MemberProfile {
   id: string;
@@ -25,25 +25,6 @@ interface MemberProfile {
   created_at: string;
 }
 
-interface MemberInvitation {
-  id: string;
-  token: string;
-  email: string;
-  first_name: string;
-  last_name: string;
-  expires_at: string;
-  used: boolean;
-  created_at: string;
-}
-
-interface CreateInvitationResponse {
-  invitation: {
-    token: string;
-    email: string;
-    expiresAt: string;
-  };
-}
-
 export default function Members() {
   const { profile, isAdmin } = useAuth();
   const { toast } = useToast();
@@ -51,8 +32,6 @@ export default function Members() {
   
   const [searchTerm, setSearchTerm] = useState('');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [showInvitationDialog, setShowInvitationDialog] = useState(false);
-  const [generatedInvitation, setGeneratedInvitation] = useState<CreateInvitationResponse['invitation'] | null>(null);
   const [createForm, setCreateForm] = useState({
     email: '',
     firstName: '',
@@ -75,40 +54,18 @@ export default function Members() {
     enabled: !!profile?.organization_id && isAdmin,
   });
 
-  // Obtener invitaciones pendientes
-  const { data: invitations = [], isLoading: invitationsLoading } = useQuery({
-    queryKey: ['invitations', profile?.organization_id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('member_invitations')
-        .select('*')
-        .eq('organization_id', profile?.organization_id)
-        .eq('used', false)
-        .gt('expires_at', new Date().toISOString())
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      return data as MemberInvitation[];
-    },
-    enabled: !!profile?.organization_id && isAdmin,
-  });
-
-  // Mutación para crear invitación
-  const createInvitationMutation = useMutation({
+  // Mutación para invitar miembro usando inviteUserByEmail
+  const inviteMemberMutation = useMutation({
     mutationFn: async (memberData: typeof createForm) => {
-      console.log('Creando invitación...', memberData);
+      console.log('Invitando miembro...', memberData);
       
-      // Obtener el token de sesión actual
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
       if (sessionError || !session) {
-        console.error('Error obteniendo sesión:', sessionError);
         throw new Error('No hay sesión activa');
       }
 
-      console.log('Token obtenido, llamando función...');
-
-      const { data, error } = await supabase.functions.invoke('create-invitation-token', {
+      const { data, error } = await supabase.functions.invoke('invite-member', {
         body: {
           email: memberData.email,
           firstName: memberData.firstName,
@@ -120,31 +77,25 @@ export default function Members() {
         }
       });
 
-      console.log('Respuesta de función:', { data, error });
-
       if (error) {
-        console.error('Error en función:', error);
         throw error;
       }
       
-      return data as CreateInvitationResponse;
+      return data;
     },
     onSuccess: (data) => {
       toast({
-        title: "Invitación creada",
-        description: "Se ha generado el link de invitación correctamente.",
+        title: "Invitación enviada",
+        description: `Se ha enviado una invitación por email a ${createForm.email}`,
       });
       setCreateForm({ email: '', firstName: '', lastName: '' });
       setIsCreateDialogOpen(false);
-      setGeneratedInvitation(data.invitation);
-      setShowInvitationDialog(true);
-      queryClient.invalidateQueries({ queryKey: ['invitations'] });
     },
     onError: (error: any) => {
       console.error('Error completo:', error);
       toast({
         title: "Error",
-        description: error.message || "Error al crear la invitación",
+        description: error.message || "Error al enviar la invitación",
         variant: "destructive",
       });
     },
@@ -210,7 +161,7 @@ export default function Members() {
 
   const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    createInvitationMutation.mutate(createForm);
+    inviteMemberMutation.mutate(createForm);
   };
 
   const handleToggleActive = (memberId: string, isActive: boolean) => {
@@ -224,22 +175,6 @@ export default function Members() {
     if (confirm('¿Estás seguro de que quieres eliminar este miembro?')) {
       deleteMemberMutation.mutate(memberId);
     }
-  };
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast({
-      title: "Copiado",
-      description: "Texto copiado al portapapeles",
-    });
-  };
-
-  const getInvitationLink = (token: string) => {
-    return `${window.location.origin}/register?token=${token}`;
-  };
-
-  const isInvitationExpired = (expiresAt: string) => {
-    return new Date(expiresAt) < new Date();
   };
 
   if (!isAdmin) {
@@ -270,7 +205,7 @@ export default function Members() {
             <DialogHeader>
               <DialogTitle>Invitar Nuevo Miembro</DialogTitle>
               <DialogDescription>
-                Genera un link de invitación que expira en 7 días. El miembro podrá registrarse usando este link.
+                Envía una invitación por email al nuevo miembro. Recibirá un enlace para crear su cuenta.
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleCreateSubmit} className="space-y-4">
@@ -308,8 +243,9 @@ export default function Members() {
                 <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={createInvitationMutation.isPending}>
-                  {createInvitationMutation.isPending ? 'Generando...' : 'Generar Invitación'}
+                <Button type="submit" disabled={inviteMemberMutation.isPending}>
+                  <Mail className="mr-2 h-4 w-4" />
+                  {inviteMemberMutation.isPending ? 'Enviando...' : 'Enviar Invitación'}
                 </Button>
               </div>
             </form>
@@ -317,69 +253,22 @@ export default function Members() {
         </Dialog>
       </div>
 
-      {/* Modal para mostrar link de invitación */}
-      <Dialog open={showInvitationDialog} onOpenChange={setShowInvitationDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Link de Invitación Generado</DialogTitle>
-            <DialogDescription>
-              Comparte este link con el nuevo miembro. El link expira en 7 días.
-            </DialogDescription>
-          </DialogHeader>
-          {generatedInvitation && (
-            <div className="space-y-4">
-              <div className="p-4 bg-gray-50 rounded-lg space-y-3">
-                <div>
-                  <Label className="text-sm font-medium">Email del invitado:</Label>
-                  <p className="text-sm text-gray-600">{generatedInvitation.email}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">Link de invitación:</Label>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Input
-                      value={getInvitationLink(generatedInvitation.token)}
-                      readOnly
-                      className="text-xs"
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => copyToClipboard(getInvitationLink(generatedInvitation.token))}
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => window.open(getInvitationLink(generatedInvitation.token), '_blank')}
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">Expira:</Label>
-                  <p className="text-sm text-gray-600">
-                    {new Date(generatedInvitation.expiresAt).toLocaleString()}
-                  </p>
-                </div>
-              </div>
-              <div className="text-sm text-amber-600 bg-amber-50 p-3 rounded-lg">
-                <strong>Importante:</strong> Guarda este link en un lugar seguro. Una vez cerrado este modal, 
-                podrás verlo en la lista de invitaciones pendientes.
-              </div>
-              <div className="flex justify-end">
-                <Button onClick={() => {
-                  setShowInvitationDialog(false);
-                  setGeneratedInvitation(null);
-                }}>
-                  Entendido
-                </Button>
-              </div>
+      {/* Información sobre el nuevo sistema */}
+      <Card className="bg-blue-50 border-blue-200">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-3">
+            <Mail className="h-5 w-5 text-blue-600" />
+            <div>
+              <p className="text-sm font-medium text-blue-900">
+                Sistema de invitaciones por email
+              </p>
+              <p className="text-xs text-blue-700">
+                Los nuevos miembros recibirán un email con un enlace para crear su cuenta
+              </p>
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Búsqueda */}
       <Card>
@@ -395,52 +284,6 @@ export default function Members() {
           </div>
         </CardContent>
       </Card>
-
-      {/* Invitaciones pendientes */}
-      {invitations.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5" />
-              Invitaciones Pendientes
-            </CardTitle>
-            <CardDescription>
-              {invitations.length} invitación{invitations.length !== 1 ? 'es' : ''} pendiente{invitations.length !== 1 ? 's' : ''}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {invitations.map((invitation) => (
-                <div key={invitation.id} className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-                  <div>
-                    <p className="font-medium">{invitation.first_name} {invitation.last_name}</p>
-                    <p className="text-sm text-gray-600">{invitation.email}</p>
-                    <p className="text-xs text-gray-500">
-                      Expira: {new Date(invitation.expires_at).toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => copyToClipboard(getInvitationLink(invitation.token))}
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => window.open(getInvitationLink(invitation.token), '_blank')}
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Lista de miembros */}
       <Card>
