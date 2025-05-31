@@ -34,12 +34,16 @@ export default function AcceptInvitation() {
   useEffect(() => {
     const validateInvitation = async () => {
       if (!token) {
+        console.log('No token provided');
         setError('Token de invitación no válido');
         setLoading(false);
         return;
       }
 
+      console.log('Validating invitation with token:', token);
+
       try {
+        // Crear un cliente de Supabase sin autenticación para acceder a las invitaciones
         const { data, error } = await supabase
           .from('member_invitations')
           .select('*')
@@ -47,9 +51,22 @@ export default function AcceptInvitation() {
           .eq('used', false)
           .single();
 
+        console.log('Query result:', { data, error });
+
         if (error) {
           console.error('Error fetching invitation:', error);
-          setError('Invitación no encontrada o ya utilizada');
+          if (error.code === 'PGRST116') {
+            setError('Invitación no encontrada o ya utilizada');
+          } else {
+            setError('Error al validar la invitación: ' + error.message);
+          }
+          setLoading(false);
+          return;
+        }
+
+        if (!data) {
+          console.log('No invitation data found');
+          setError('Invitación no encontrada');
           setLoading(false);
           return;
         }
@@ -58,12 +75,15 @@ export default function AcceptInvitation() {
         const now = new Date();
         const expiresAt = new Date(data.expires_at);
         
+        console.log('Checking expiration:', { now, expiresAt, expired: expiresAt <= now });
+        
         if (expiresAt <= now) {
           setError('Esta invitación ha expirado');
           setLoading(false);
           return;
         }
 
+        console.log('Invitation is valid:', data);
         setInvitation(data);
       } catch (err) {
         console.error('Unexpected error:', err);
