@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { UserPlus, Mail, Edit, Trash2, Search } from 'lucide-react';
+import { UserPlus, Edit, Trash2, Search, Copy, Eye, EyeOff } from 'lucide-react';
 
 interface MemberProfile {
   id: string;
@@ -22,16 +23,12 @@ interface MemberProfile {
   avatar_url: string | null;
   is_active: boolean;
   created_at: string;
+  password_changed?: boolean;
 }
 
-interface MemberInvitation {
-  id: string;
+interface CreateMemberCredentials {
   email: string;
-  first_name: string;
-  last_name: string;
-  created_at: string;
-  expires_at: string;
-  used: boolean;
+  password: string;
 }
 
 export default function Members() {
@@ -40,8 +37,11 @@ export default function Members() {
   const queryClient = useQueryClient();
   
   const [searchTerm, setSearchTerm] = useState('');
-  const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
-  const [inviteForm, setInviteForm] = useState({
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [showCredentialsDialog, setShowCredentialsDialog] = useState(false);
+  const [generatedCredentials, setGeneratedCredentials] = useState<CreateMemberCredentials | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [createForm, setCreateForm] = useState({
     email: '',
     firstName: '',
     lastName: ''
@@ -63,27 +63,10 @@ export default function Members() {
     enabled: !!profile?.organization_id && isAdmin,
   });
 
-  // Obtener invitaciones pendientes
-  const { data: invitations = [] } = useQuery({
-    queryKey: ['invitations', profile?.organization_id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('member_invitations')
-        .select('*')
-        .eq('organization_id', profile?.organization_id)
-        .eq('used', false)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      return data as MemberInvitation[];
-    },
-    enabled: !!profile?.organization_id && isAdmin,
-  });
-
-  // Mutación para enviar invitación
-  const inviteMutation = useMutation({
-    mutationFn: async (inviteData: typeof inviteForm) => {
-      console.log('Enviando invitación...', inviteData);
+  // Mutación para crear miembro
+  const createMemberMutation = useMutation({
+    mutationFn: async (memberData: typeof createForm) => {
+      console.log('Creando miembro...', memberData);
       
       // Obtener el token de sesión actual
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -95,11 +78,11 @@ export default function Members() {
 
       console.log('Token obtenido, llamando función...');
 
-      const { data, error } = await supabase.functions.invoke('send-member-invitation', {
+      const { data, error } = await supabase.functions.invoke('create-member', {
         body: {
-          email: inviteData.email,
-          firstName: inviteData.firstName,
-          lastName: inviteData.lastName
+          email: memberData.email,
+          firstName: memberData.firstName,
+          lastName: memberData.lastName
         },
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
@@ -116,20 +99,22 @@ export default function Members() {
       
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({
-        title: "Invitación enviada",
-        description: "La invitación ha sido enviada correctamente por email.",
+        title: "Miembro creado",
+        description: "El miembro ha sido creado correctamente. Se han generado las credenciales.",
       });
-      setInviteForm({ email: '', firstName: '', lastName: '' });
-      setIsInviteDialogOpen(false);
-      queryClient.invalidateQueries({ queryKey: ['invitations'] });
+      setCreateForm({ email: '', firstName: '', lastName: '' });
+      setIsCreateDialogOpen(false);
+      setGeneratedCredentials(data.credentials);
+      setShowCredentialsDialog(true);
+      queryClient.invalidateQueries({ queryKey: ['members'] });
     },
     onError: (error: any) => {
       console.error('Error completo:', error);
       toast({
         title: "Error",
-        description: error.message || "Error al enviar la invitación",
+        description: error.message || "Error al crear el miembro",
         variant: "destructive",
       });
     },
@@ -193,9 +178,9 @@ export default function Members() {
     member.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleInviteSubmit = (e: React.FormEvent) => {
+  const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    inviteMutation.mutate(inviteForm);
+    createMemberMutation.mutate(createForm);
   };
 
   const handleToggleActive = (memberId: string, isActive: boolean) => {
@@ -209,6 +194,14 @@ export default function Members() {
     if (confirm('¿Estás seguro de que quieres eliminar este miembro?')) {
       deleteMemberMutation.mutate(memberId);
     }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({
+      title: "Copiado",
+      description: "Texto copiado al portapapeles",
+    });
   };
 
   if (!isAdmin) {
@@ -228,28 +221,28 @@ export default function Members() {
           <p className="text-gray-600">Administra los miembros de tu organización</p>
         </div>
         
-        <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
             <Button className="bg-blue-600 hover:bg-blue-700">
               <UserPlus className="mr-2 h-4 w-4" />
-              Invitar Miembro
+              Crear Miembro
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Invitar Nuevo Miembro</DialogTitle>
+              <DialogTitle>Crear Nuevo Miembro</DialogTitle>
               <DialogDescription>
-                Envía una invitación por email para que se una a la organización
+                Crea un nuevo miembro con credenciales temporales que deberá cambiar en su primer acceso
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleInviteSubmit} className="space-y-4">
+            <form onSubmit={handleCreateSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="firstName">Nombre</Label>
                   <Input
                     id="firstName"
-                    value={inviteForm.firstName}
-                    onChange={(e) => setInviteForm({...inviteForm, firstName: e.target.value})}
+                    value={createForm.firstName}
+                    onChange={(e) => setCreateForm({...createForm, firstName: e.target.value})}
                     required
                   />
                 </div>
@@ -257,8 +250,8 @@ export default function Members() {
                   <Label htmlFor="lastName">Apellido</Label>
                   <Input
                     id="lastName"
-                    value={inviteForm.lastName}
-                    onChange={(e) => setInviteForm({...inviteForm, lastName: e.target.value})}
+                    value={createForm.lastName}
+                    onChange={(e) => setCreateForm({...createForm, lastName: e.target.value})}
                     required
                   />
                 </div>
@@ -268,23 +261,88 @@ export default function Members() {
                 <Input
                   id="email"
                   type="email"
-                  value={inviteForm.email}
-                  onChange={(e) => setInviteForm({...inviteForm, email: e.target.value})}
+                  value={createForm.email}
+                  onChange={(e) => setCreateForm({...createForm, email: e.target.value})}
                   required
                 />
               </div>
               <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setIsInviteDialogOpen(false)}>
+                <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={inviteMutation.isPending}>
-                  {inviteMutation.isPending ? 'Enviando...' : 'Enviar Invitación'}
+                <Button type="submit" disabled={createMemberMutation.isPending}>
+                  {createMemberMutation.isPending ? 'Creando...' : 'Crear Miembro'}
                 </Button>
               </div>
             </form>
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Modal para mostrar credenciales generadas */}
+      <Dialog open={showCredentialsDialog} onOpenChange={setShowCredentialsDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Credenciales del Nuevo Miembro</DialogTitle>
+            <DialogDescription>
+              Guarda estas credenciales y compártelas con el nuevo miembro. Deberá cambiar la contraseña en su primer acceso.
+            </DialogDescription>
+          </DialogHeader>
+          {generatedCredentials && (
+            <div className="space-y-4">
+              <div className="p-4 bg-gray-50 rounded-lg space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Email:</Label>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-sm">{generatedCredentials.email}</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => copyToClipboard(generatedCredentials.email)}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label>Contraseña temporal:</Label>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-sm">
+                      {showPassword ? generatedCredentials.password : '••••••••••••'}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => copyToClipboard(generatedCredentials.password)}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              <div className="text-sm text-amber-600 bg-amber-50 p-3 rounded-lg">
+                <strong>Importante:</strong> El usuario deberá cambiar esta contraseña en su primer acceso al sistema.
+              </div>
+              <div className="flex justify-end">
+                <Button onClick={() => {
+                  setShowCredentialsDialog(false);
+                  setGeneratedCredentials(null);
+                  setShowPassword(false);
+                }}>
+                  Entendido
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Búsqueda */}
       <Card>
@@ -300,36 +358,6 @@ export default function Members() {
           </div>
         </CardContent>
       </Card>
-
-      {/* Invitaciones pendientes */}
-      {invitations.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Mail className="h-5 w-5" />
-              Invitaciones Pendientes
-            </CardTitle>
-            <CardDescription>
-              Invitaciones enviadas que aún no han sido aceptadas
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {invitations.map((invitation) => (
-                <div key={invitation.id} className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-                  <div>
-                    <p className="font-medium">{invitation.first_name} {invitation.last_name}</p>
-                    <p className="text-sm text-gray-600">{invitation.email}</p>
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    Enviada {new Date(invitation.created_at).toLocaleDateString()}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Lista de miembros */}
       <Card>
@@ -354,6 +382,7 @@ export default function Members() {
                   <TableHead>Email</TableHead>
                   <TableHead>Rol</TableHead>
                   <TableHead>Estado</TableHead>
+                  <TableHead>Contraseña</TableHead>
                   <TableHead>Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -398,6 +427,17 @@ export default function Members() {
                           {member.is_active ? 'Activo' : 'Inactivo'}
                         </span>
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      {member.password_changed === false ? (
+                        <span className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded-full">
+                          Temporal
+                        </span>
+                      ) : (
+                        <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                          Cambiada
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
