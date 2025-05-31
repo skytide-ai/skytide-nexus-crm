@@ -10,6 +10,7 @@ import { Dashboard } from '@/components/Dashboard';
 import Members from '@/pages/Members';
 import Services from '@/pages/Services';
 import { Availability } from '@/pages/Availability';
+import Contacts from '@/pages/Contacts';
 import AcceptInvitation from '@/pages/AcceptInvitation';
 import SetPassword from '@/pages/SetPassword';
 import NotFound from '@/pages/NotFound';

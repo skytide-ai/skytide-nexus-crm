@@ -9,6 +9,252 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      appointments: {
+        Row: {
+          appointment_date: string
+          contact_id: string
+          created_at: string
+          created_by: string
+          end_time: string
+          id: string
+          member_id: string | null
+          notes: string | null
+          organization_id: string
+          service_id: string | null
+          start_time: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          appointment_date: string
+          contact_id: string
+          created_at?: string
+          created_by: string
+          end_time: string
+          id?: string
+          member_id?: string | null
+          notes?: string | null
+          organization_id: string
+          service_id?: string | null
+          start_time: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          appointment_date?: string
+          contact_id?: string
+          created_at?: string
+          created_by?: string
+          end_time?: string
+          id?: string
+          member_id?: string | null
+          notes?: string | null
+          organization_id?: string
+          service_id?: string | null
+          start_time?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointments_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contact_files: {
+        Row: {
+          contact_id: string
+          created_at: string
+          created_by: string
+          file_name: string
+          file_path: string
+          file_size: number | null
+          id: string
+          mime_type: string | null
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string
+          created_by: string
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string
+          created_by?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_files_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_files_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contact_notes: {
+        Row: {
+          contact_id: string
+          created_at: string
+          created_by: string
+          id: string
+          note: string
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string
+          created_by: string
+          id?: string
+          note: string
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          note?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_notes_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_notes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contacts: {
+        Row: {
+          address: string | null
+          age: number | null
+          birth_date: string | null
+          city: string | null
+          country_code: string
+          created_at: string
+          created_by: string
+          document_number: string | null
+          document_type: string | null
+          email: string | null
+          first_name: string
+          gender: string | null
+          id: string
+          last_name: string
+          organization_id: string
+          phone: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          age?: number | null
+          birth_date?: string | null
+          city?: string | null
+          country_code?: string
+          created_at?: string
+          created_by: string
+          document_number?: string | null
+          document_type?: string | null
+          email?: string | null
+          first_name: string
+          gender?: string | null
+          id?: string
+          last_name: string
+          organization_id: string
+          phone: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          age?: number | null
+          birth_date?: string | null
+          city?: string | null
+          country_code?: string
+          created_at?: string
+          created_by?: string
+          document_number?: string | null
+          document_type?: string | null
+          email?: string | null
+          first_name?: string
+          gender?: string | null
+          id?: string
+          last_name?: string
+          organization_id?: string
+          phone?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contacts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contacts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       member_availability: {
         Row: {
           break_end_time: string | null
