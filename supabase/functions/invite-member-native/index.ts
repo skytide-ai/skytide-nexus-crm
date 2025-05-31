@@ -133,27 +133,26 @@ serve(async (req) => {
       .eq('id', profile.organization_id)
       .single();
 
-    // Use Supabase native invitation system
-    const redirectUrl = `${req.headers.get('origin')}/invite/accept`;
+    // Step 1: Create user with confirmed email and temporary random password
+    const temporaryPassword = crypto.randomUUID();
     
-    const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+    const { data: newUser, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
       email,
-      {
-        redirectTo: redirectUrl,
-        data: {
-          first_name: firstName,
-          last_name: lastName,
-          organization_id: profile.organization_id,
-          invited_by: profile.first_name + ' ' + profile.last_name,
-          organization_name: organization?.name || 'la organización'
-        }
+      email_confirm: true,
+      password: temporaryPassword,
+      user_metadata: {
+        first_name: firstName,
+        last_name: lastName,
+        organization_id: profile.organization_id,
+        invited_by: profile.first_name + ' ' + profile.last_name,
+        organization_name: organization?.name || 'la organización'
       }
-    );
+    });
 
-    if (inviteError) {
-      console.error('Error sending invitation:', inviteError);
+    if (createUserError) {
+      console.error('Error creating user:', createUserError);
       return new Response(
-        JSON.stringify({ error: 'Error al enviar la invitación: ' + inviteError.message }),
+        JSON.stringify({ error: 'Error al crear el usuario: ' + createUserError.message }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 400,
@@ -161,11 +160,37 @@ serve(async (req) => {
       );
     }
 
-    console.log('Invitation sent successfully:', inviteData);
+    console.log('User created successfully:', newUser.user?.id);
+
+    // Step 2: Generate recovery link for password setup
+    const redirectUrl = `${req.headers.get('origin')}/`;
+    
+    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'recovery',
+      email,
+      redirectTo: redirectUrl
+    });
+
+    if (linkError) {
+      console.error('Error generating recovery link:', linkError);
+      return new Response(
+        JSON.stringify({ error: 'Error al generar el enlace de invitación: ' + linkError.message }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        }
+      );
+    }
+
+    console.log('Recovery link generated successfully');
     console.log('=== Native member invitation completed successfully ===');
 
     return new Response(
-      JSON.stringify({ success: true, message: 'Invitación enviada correctamente' }),
+      JSON.stringify({ 
+        success: true, 
+        message: 'Invitación enviada correctamente. El usuario recibirá un email para establecer su contraseña.',
+        action_link: linkData.action_link
+      }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
