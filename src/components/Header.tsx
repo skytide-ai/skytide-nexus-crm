@@ -65,20 +65,17 @@ export function Header() {
                 className="flex items-center gap-3 hover:bg-gray-50 transition-colors px-3 py-2 h-auto rounded-lg"
               >
                 <div className="text-right min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <p className="text-sm font-semibold text-gray-900 truncate">
+                  {organization && (
+                    <p className="text-base font-semibold text-gray-900 truncate mb-1">
+                      {organization.name}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-2 justify-end">
+                    <p className="text-sm font-medium text-gray-700 truncate">
                       {profile ? `${profile.first_name} ${profile.last_name}` : 'Usuario'}
                     </p>
                     {getRoleBadge()}
                   </div>
-                  <p className="text-xs text-gray-500 truncate">
-                    {profile?.email || 'email@usuario.com'}
-                  </p>
-                  {organization && (
-                    <p className="text-xs text-gray-400 truncate">
-                      {organization.name}
-                    </p>
-                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   <Avatar className="w-10 h-10 ring-2 ring-gray-100">
