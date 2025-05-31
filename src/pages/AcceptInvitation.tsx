@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -21,6 +20,7 @@ export default function AcceptInvitation() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [email, setEmail] = useState('');
+  const [invitationData, setInvitationData] = useState<any>(null);
 
   useEffect(() => {
     const validateInvitation = async () => {
@@ -34,26 +34,22 @@ export default function AcceptInvitation() {
       console.log('Validating invitation with token:', token);
 
       try {
-        // Verificar el token de invitación usando la API de Supabase Auth
-        const { data, error } = await supabase.auth.verifyOtp({
-          token_hash: token,
-          type: 'invite'
+        // Use admin client to validate the token without logging in the user
+        const { data, error } = await supabase.functions.invoke('validate-invitation-token', {
+          body: { token }
         });
 
         if (error) {
-          console.error('Error verifying invitation:', error);
-          if (error.message.includes('expired') || error.message.includes('invalid')) {
-            setError('El enlace de invitación ha expirado o no es válido');
-          } else {
-            setError('Error al validar la invitación: ' + error.message);
-          }
+          console.error('Error validating invitation:', error);
+          setError('El enlace de invitación ha expirado o no es válido');
           setLoading(false);
           return;
         }
 
-        if (data?.user?.email) {
-          setEmail(data.user.email);
-          console.log('Invitation is valid for email:', data.user.email);
+        if (data?.email) {
+          setEmail(data.email);
+          setInvitationData(data);
+          console.log('Invitation is valid for email:', data.email);
         } else {
           setError('No se pudo obtener información de la invitación');
           setLoading(false);
@@ -74,7 +70,7 @@ export default function AcceptInvitation() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!email) {
+    if (!email || !invitationData) {
       setError('No se encontró información de la invitación');
       return;
     }
@@ -93,9 +89,13 @@ export default function AcceptInvitation() {
     setError('');
 
     try {
-      // Aceptar la invitación estableciendo la contraseña
-      const { data: authData, error: acceptError } = await supabase.auth.updateUser({
-        password: password
+      // First accept the invitation with the token and password
+      const { data: acceptData, error: acceptError } = await supabase.functions.invoke('accept-invitation', {
+        body: { 
+          token,
+          password,
+          email
+        }
       });
 
       if (acceptError) {
@@ -104,8 +104,21 @@ export default function AcceptInvitation() {
         return;
       }
 
-      if (!authData.user) {
-        setError('Error al procesar la invitación');
+      // Now sign in with the email and password
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (signInError) {
+        console.error('Error signing in after invitation:', signInError);
+        setError('La invitación fue aceptada pero hubo un error al iniciar sesión. Intenta iniciar sesión manualmente.');
+        // Still show success since the invitation was accepted
+        toast({
+          title: "Invitación aceptada",
+          description: "Tu cuenta ha sido creada. Puedes iniciar sesión con tu email y contraseña.",
+        });
+        navigate('/auth');
         return;
       }
 
@@ -160,7 +173,7 @@ export default function AcceptInvitation() {
         <CardHeader>
           <CardTitle>Aceptar Invitación</CardTitle>
           <CardDescription>
-            Has sido invitado a unirte como miembro de la organización
+            Has sido invitado a unirte como miembro de la organización. Establece una contraseña para tu cuenta.
           </CardDescription>
         </CardHeader>
         <CardContent>
