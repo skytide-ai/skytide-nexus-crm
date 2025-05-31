@@ -41,7 +41,7 @@ export default function AcceptInvitation() {
     try {
       const { data, error } = await supabase.functions.invoke('accept-invitation', {
         method: 'GET',
-        body: null,
+        body: { token },
         headers: {
           'Content-Type': 'application/json',
         },
