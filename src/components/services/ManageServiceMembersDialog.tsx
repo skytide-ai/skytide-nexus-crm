@@ -17,7 +17,7 @@ interface ManageServiceMembersDialogProps {
 
 export function ManageServiceMembersDialog({ service, open, onOpenChange }: ManageServiceMembersDialogProps) {
   const [searchTerm, setSearchTerm] = useState('');
-  const { data: members } = useMembers();
+  const { members } = useMembers();
   const assignMember = useAssignMemberToService();
   const unassignMember = useUnassignMemberFromService();
 

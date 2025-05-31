@@ -39,7 +39,15 @@ export function CreateServiceDialog({ open, onOpenChange }: CreateServiceDialogP
 
   const onSubmit = async (data: ServiceFormData) => {
     try {
-      await createService.mutateAsync(data);
+      // Asegurar que los valores requeridos estén presentes
+      const serviceData = {
+        name: data.name,
+        description: data.description || undefined,
+        duration_minutes: data.duration_minutes,
+        price_cop: data.price_cop,
+      };
+      
+      await createService.mutateAsync(serviceData);
       form.reset();
       onOpenChange(false);
     } catch (error) {

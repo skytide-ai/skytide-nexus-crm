@@ -20,6 +20,7 @@ export interface Service {
     first_name: string;
     last_name: string;
     email: string;
+    avatar_url?: string;
   }[];
 }
 
@@ -50,7 +51,8 @@ export function useServices() {
               id,
               first_name,
               last_name,
-              email
+              email,
+              avatar_url
             )
           )
         `)
