@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,7 +12,7 @@ interface AppointmentCardProps {
 }
 
 const statusConfig = {
-  agendada: { label: 'Agendada', color: 'bg-blue-100 text-blue-800' },
+  programada: { label: 'Programada', color: 'bg-blue-100 text-blue-800' },
   confirmada: { label: 'Confirmada', color: 'bg-green-100 text-green-800' },
   cancelada: { label: 'Cancelada', color: 'bg-red-100 text-red-800' },
   no_asistida: { label: 'No asistió', color: 'bg-orange-100 text-orange-800' },
