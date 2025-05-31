@@ -23,3 +23,6 @@ verify_jwt = true
 
 [functions.invite-member-native]
 verify_jwt = true
+
+[functions.delete-member]
+verify_jwt = true

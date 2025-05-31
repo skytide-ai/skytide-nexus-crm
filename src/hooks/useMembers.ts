@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -121,23 +120,35 @@ export const useMembers = () => {
     },
   });
 
-  // Mutación para eliminar miembro - simplificada
+  // Mutación para eliminar miembro - usando Edge Function
   const deleteMemberMutation = useMutation({
     mutationFn: async (memberId: string) => {
       console.log('Eliminando miembro con ID:', memberId);
       
-      const { error } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', memberId);
-
-      if (error) {
-        console.error('Error al eliminar miembro:', error);
-        throw new Error(`Error al eliminar miembro: ${error.message}`);
+      // Obtener el token de sesión actual
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session?.access_token) {
+        console.error('Error getting session:', sessionError);
+        throw new Error('No se pudo obtener la sesión de usuario');
       }
 
-      console.log('Miembro eliminado exitosamente');
-      return { memberId };
+      console.log('Calling delete-member function...');
+      
+      const { data, error } = await supabase.functions.invoke('delete-member', {
+        body: { memberId },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) {
+        console.error('Error invoking delete-member function:', error);
+        throw new Error(error.message || 'Error al eliminar el miembro');
+      }
+
+      console.log('Member deleted successfully:', data);
+      return data;
     },
     onSuccess: (data) => {
       console.log('Miembro eliminado exitosamente:', data);
@@ -153,7 +164,7 @@ export const useMembers = () => {
 
       toast({
         title: "Miembro eliminado",
-        description: "El miembro ha sido eliminado del sistema.",
+        description: "El miembro ha sido eliminado completamente del sistema.",
       });
     },
     onError: (error: any) => {
