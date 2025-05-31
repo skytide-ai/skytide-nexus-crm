@@ -4,13 +4,12 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { ClerkAuthProvider } from "./contexts/ClerkAuthContext";
+import { AuthProvider } from "./contexts/AuthContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Layout } from "./components/Layout";
 import { Dashboard } from "./components/Dashboard";
-import ClerkAuth from "./pages/ClerkAuth";
-import CreateOrganization from "./pages/CreateOrganization";
-import ClerkMembers from "./pages/ClerkMembers";
+import Auth from "./pages/Auth";
+import Members from "./pages/Members";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -21,14 +20,9 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <ClerkAuthProvider>
+        <AuthProvider>
           <Routes>
-            <Route path="/auth" element={<ClerkAuth />} />
-            <Route path="/create-organization" element={
-              <ProtectedRoute>
-                <CreateOrganization />
-              </ProtectedRoute>
-            } />
+            <Route path="/auth" element={<Auth />} />
             <Route path="/" element={
               <ProtectedRoute>
                 <Layout>
@@ -67,7 +61,7 @@ const App = () => (
             <Route path="/members" element={
               <ProtectedRoute requiredRole="admin">
                 <Layout>
-                  <ClerkMembers />
+                  <Members />
                 </Layout>
               </ProtectedRoute>
             } />
@@ -85,9 +79,16 @@ const App = () => (
                 </Layout>
               </ProtectedRoute>
             } />
+            <Route path="/system-admin" element={
+              <ProtectedRoute requiredRole="superadmin">
+                <Layout>
+                  <div className="text-center text-gray-500 py-20">Administración del Sistema - En desarrollo</div>
+                </Layout>
+              </ProtectedRoute>
+            } />
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </ClerkAuthProvider>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

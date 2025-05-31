@@ -8,6 +8,7 @@ import {
   Clock,
   Phone,
   Plus,
+  Shield,
 } from "lucide-react";
 import {
   Sidebar,
@@ -21,6 +22,7 @@ import {
   SidebarHeader,
 } from "@/components/ui/sidebar";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 const menuItems = [
   {
@@ -47,11 +49,13 @@ const menuItems = [
     title: "Servicios",
     url: "/services",
     icon: Plus,
+    requiresAdmin: true,
   },
   {
     title: "Miembros",
     url: "/members",
     icon: Users,
+    requiresAdmin: true,
   },
   {
     title: "Disponibilidad",
@@ -65,12 +69,35 @@ const settingsItems = [
     title: "Configuración",
     url: "/settings",
     icon: Settings,
+    requiresAdmin: true,
+  },
+];
+
+const systemItems = [
+  {
+    title: "Sistema Admin",
+    url: "/system-admin",
+    icon: Shield,
+    requiresSuperAdmin: true,
   },
 ];
 
 export function AppSidebar() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { isAdmin, isSuperAdmin } = useAuth();
+
+  const filteredMenuItems = menuItems.filter(item => 
+    !item.requiresAdmin || (item.requiresAdmin && (isAdmin || isSuperAdmin))
+  );
+
+  const filteredSettingsItems = settingsItems.filter(item => 
+    !item.requiresAdmin || (item.requiresAdmin && (isAdmin || isSuperAdmin))
+  );
+
+  const filteredSystemItems = systemItems.filter(item => 
+    !item.requiresSuperAdmin || (item.requiresSuperAdmin && isSuperAdmin)
+  );
 
   return (
     <Sidebar className="border-r border-gray-200">
@@ -93,7 +120,7 @@ export function AppSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((item) => (
+              {filteredMenuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     onClick={() => navigate(item.url)}
@@ -112,30 +139,59 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup className="mt-8">
-          <SidebarGroupLabel className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
-            Sistema
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {settingsItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    onClick={() => navigate(item.url)}
-                    className={`w-full justify-start gap-3 h-10 hover:bg-primary/5 hover:text-primary transition-colors ${
-                      location.pathname === item.url
-                        ? "bg-primary/10 text-primary border-r-2 border-primary"
-                        : "text-gray-700"
-                    }`}
-                  >
-                    <item.icon className="h-4 w-4" />
-                    <span className="font-medium">{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {filteredSettingsItems.length > 0 && (
+          <SidebarGroup className="mt-8">
+            <SidebarGroupLabel className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
+              Sistema
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {filteredSettingsItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      onClick={() => navigate(item.url)}
+                      className={`w-full justify-start gap-3 h-10 hover:bg-primary/5 hover:text-primary transition-colors ${
+                        location.pathname === item.url
+                          ? "bg-primary/10 text-primary border-r-2 border-primary"
+                          : "text-gray-700"
+                      }`}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      <span className="font-medium">{item.title}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {filteredSystemItems.length > 0 && (
+          <SidebarGroup className="mt-8">
+            <SidebarGroupLabel className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
+              Super Admin
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {filteredSystemItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      onClick={() => navigate(item.url)}
+                      className={`w-full justify-start gap-3 h-10 hover:bg-primary/5 hover:text-primary transition-colors ${
+                        location.pathname === item.url
+                          ? "bg-primary/10 text-primary border-r-2 border-primary"
+                          : "text-gray-700"
+                      }`}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      <span className="font-medium">{item.title}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
     </Sidebar>
   );
