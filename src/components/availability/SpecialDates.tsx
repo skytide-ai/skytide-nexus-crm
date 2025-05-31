@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Calendar, Plus, Trash2, Coffee, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { MemberSpecialDate, OrganizationSpecialDate } from '@/hooks/useAvailability';
+import { TimeSelector } from './TimeSelector';
 
 interface SpecialDatesProps {
   specialDates: MemberSpecialDate[] | OrganizationSpecialDate[];
@@ -139,45 +139,33 @@ export function SpecialDates({
                     {formData.is_available && (
                       <>
                         <div className="grid grid-cols-2 gap-4">
-                          <div className="grid gap-2">
-                            <Label htmlFor="start_time">Hora inicio</Label>
-                            <Input
-                              id="start_time"
-                              type="time"
-                              value={formData.start_time}
-                              onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
-                            />
-                          </div>
-                          <div className="grid gap-2">
-                            <Label htmlFor="end_time">Hora fin</Label>
-                            <Input
-                              id="end_time"
-                              type="time"
-                              value={formData.end_time}
-                              onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
-                            />
-                          </div>
+                          <TimeSelector
+                            label="Hora inicio"
+                            value={formData.start_time}
+                            onChange={(value) => setFormData({ ...formData, start_time: value })}
+                            id="start_time"
+                          />
+                          <TimeSelector
+                            label="Hora fin"
+                            value={formData.end_time}
+                            onChange={(value) => setFormData({ ...formData, end_time: value })}
+                            id="end_time"
+                          />
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
-                          <div className="grid gap-2">
-                            <Label htmlFor="break_start_time">Descanso inicio</Label>
-                            <Input
-                              id="break_start_time"
-                              type="time"
-                              value={formData.break_start_time}
-                              onChange={(e) => setFormData({ ...formData, break_start_time: e.target.value })}
-                            />
-                          </div>
-                          <div className="grid gap-2">
-                            <Label htmlFor="break_end_time">Descanso fin</Label>
-                            <Input
-                              id="break_end_time"
-                              type="time"
-                              value={formData.break_end_time}
-                              onChange={(e) => setFormData({ ...formData, break_end_time: e.target.value })}
-                            />
-                          </div>
+                          <TimeSelector
+                            label="Descanso inicio"
+                            value={formData.break_start_time}
+                            onChange={(value) => setFormData({ ...formData, break_start_time: value })}
+                            id="break_start_time"
+                          />
+                          <TimeSelector
+                            label="Descanso fin"
+                            value={formData.break_end_time}
+                            onChange={(value) => setFormData({ ...formData, break_end_time: value })}
+                            id="break_end_time"
+                          />
                         </div>
                       </>
                     )}
