@@ -32,23 +32,20 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Create regular client for user verification with the auth header
-    const supabase = createClient(
+    // Extract the JWT token from the Authorization header
+    const token = authHeader.replace('Bearer ', '');
+    console.log('Token extracted, length:', token.length);
+
+    // Create admin client to verify the user
+    const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: {
-            Authorization: authHeader
-          }
-        }
-      }
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    console.log('Getting user from token...');
+    console.log('Verifying user with token...');
     
-    // Verify current user
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    // Verify the JWT token using the admin client
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
     
     if (authError) {
       console.error('Auth error:', authError);
@@ -68,8 +65,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('User verified:', user.id);
 
-    // Get user profile
-    const { data: profile, error: profileError } = await supabase
+    // Get user profile using admin client
+    const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('role, organization_id')
       .eq('id', user.id)
@@ -105,7 +102,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Check if user already exists
-    const { data: existingUser } = await supabase
+    const { data: existingUser } = await supabaseAdmin
       .from('profiles')
       .select('id')
       .eq('email', email)
@@ -117,12 +114,6 @@ const handler = async (req: Request): Promise<Response> => {
         { status: 409, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
-
-    // Create admin client for the invitation
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
 
     console.log('Sending invitation using admin client...');
 
