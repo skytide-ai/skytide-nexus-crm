@@ -37,17 +37,27 @@ serve(async (req) => {
 
     console.log('Authorization header found');
 
-    // Create Supabase client with service role for admin operations
-    const supabase = createClient(
+    // Create Supabase client with the user's JWT token
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        global: {
+          headers: {
+            Authorization: authHeader,
+          },
+        },
+      }
+    );
+
+    // Create admin client for database operations
+    const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Extract JWT token
-    const jwt = authHeader.replace('Bearer ', '');
-    
-    // Verify user authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser(jwt);
+    // Verify user authentication using the user client
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
     
     if (authError || !user) {
       console.error('Authentication failed:', authError?.message);
@@ -62,8 +72,8 @@ serve(async (req) => {
 
     console.log('User authenticated:', user.id);
 
-    // Get user profile
-    const { data: profile, error: profileError } = await supabase
+    // Get user profile using admin client
+    const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('role, organization_id, first_name, last_name')
       .eq('id', user.id)
@@ -110,7 +120,7 @@ serve(async (req) => {
     console.log('Invitation data:', { email, firstName, lastName });
 
     // Check if user already exists
-    const { data: existingUser } = await supabase
+    const { data: existingUser } = await supabaseAdmin
       .from('profiles')
       .select('id')
       .eq('email', email)
@@ -132,7 +142,7 @@ serve(async (req) => {
     console.log('Generated token:', token);
 
     // Create invitation
-    const { error: inviteError } = await supabase
+    const { error: inviteError } = await supabaseAdmin
       .from('member_invitations')
       .insert({
         organization_id: profile.organization_id,
@@ -157,7 +167,7 @@ serve(async (req) => {
     console.log('Invitation created successfully');
 
     // Get organization name
-    const { data: organization } = await supabase
+    const { data: organization } = await supabaseAdmin
       .from('organizations')
       .select('name')
       .eq('id', profile.organization_id)
