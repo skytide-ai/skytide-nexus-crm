@@ -1,14 +1,14 @@
 
 import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Users, Phone, Mail, Calendar } from 'lucide-react';
+import { Plus, Search, Users, Phone, Mail, MapPin, Calendar, Eye } from 'lucide-react';
 import { useContacts } from '@/hooks/useContacts';
 import { CreateContactDialog } from '@/components/contacts/CreateContactDialog';
-import { ContactCard } from '@/components/contacts/ContactCard';
 import { ContactDetailDialog } from '@/components/contacts/ContactDetailDialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { Contact } from '@/types/contact';
 
 export default function Contacts() {
@@ -23,6 +23,10 @@ export default function Contacts() {
     contact.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('es-CO');
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -36,81 +40,29 @@ export default function Contacts() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header with Total Count */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Contactos</h1>
-          <p className="text-gray-600 mt-1">
-            Gestiona tu base de datos de contactos y clientes
-          </p>
+        <div className="flex items-center gap-6">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Contactos</h1>
+            <p className="text-gray-600 mt-1">
+              Gestiona tu base de datos de contactos y clientes
+            </p>
+          </div>
+          <div className="flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <Users className="h-6 w-6 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-blue-700">Total de Contactos</p>
+              <p className="text-2xl font-bold text-blue-900">{contacts.length}</p>
+            </div>
+          </div>
         </div>
         <Button onClick={() => setShowCreateDialog(true)} className="flex items-center gap-2">
           <Plus className="h-4 w-4" />
           Nuevo Contacto
         </Button>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-blue-100 rounded-lg">
-                <Users className="h-6 w-6 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Contactos</p>
-                <p className="text-2xl font-bold text-gray-900">{contacts.length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-green-100 rounded-lg">
-                <Phone className="h-6 w-6 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Con Teléfono</p>
-                <p className="text-2xl font-bold text-gray-900">{contacts.filter(c => c.phone).length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-purple-100 rounded-lg">
-                <Mail className="h-6 w-6 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Con Email</p>
-                <p className="text-2xl font-bold text-gray-900">{contacts.filter(c => c.email).length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-orange-100 rounded-lg">
-                <Calendar className="h-6 w-6 text-orange-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Agregados Hoy</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {contacts.filter(c => 
-                    new Date(c.created_at).toDateString() === new Date().toDateString()
-                  ).length}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Search */}
@@ -128,39 +80,115 @@ export default function Contacts() {
         </CardContent>
       </Card>
 
-      {/* Contacts Grid */}
-      {filteredContacts.length === 0 ? (
-        <Card>
-          <CardContent className="p-12 text-center">
-            <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              {searchTerm ? 'No se encontraron contactos' : 'No hay contactos aún'}
-            </h3>
-            <p className="text-gray-600 mb-4">
-              {searchTerm 
-                ? 'Intenta con otros términos de búsqueda'
-                : 'Comienza agregando tu primer contacto'
-              }
-            </p>
-            {!searchTerm && (
-              <Button onClick={() => setShowCreateDialog(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Crear Primer Contacto
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredContacts.map((contact) => (
-            <ContactCard
-              key={contact.id}
-              contact={contact}
-              onClick={() => setSelectedContact(contact)}
-            />
-          ))}
-        </div>
-      )}
+      {/* Contacts Table */}
+      <Card>
+        <CardContent className="p-0">
+          {filteredContacts.length === 0 ? (
+            <div className="p-12 text-center">
+              <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                {searchTerm ? 'No se encontraron contactos' : 'No hay contactos aún'}
+              </h3>
+              <p className="text-gray-600 mb-4">
+                {searchTerm 
+                  ? 'Intenta con otros términos de búsqueda'
+                  : 'Comienza agregando tu primer contacto'
+                }
+              </p>
+              {!searchTerm && (
+                <Button onClick={() => setShowCreateDialog(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Crear Primer Contacto
+                </Button>
+              )}
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nombre</TableHead>
+                  <TableHead>Teléfono</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Ciudad</TableHead>
+                  <TableHead>Documento</TableHead>
+                  <TableHead>Fecha de Registro</TableHead>
+                  <TableHead className="w-[100px]">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredContacts.map((contact) => (
+                  <TableRow key={contact.id} className="hover:bg-gray-50">
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
+                          {contact.first_name[0]}{contact.last_name[0]}
+                        </div>
+                        <div>
+                          <p className="font-semibold">{contact.first_name} {contact.last_name}</p>
+                          {contact.age && (
+                            <p className="text-sm text-gray-500">{contact.age} años</p>
+                          )}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-4 w-4 text-gray-400" />
+                        <span>{contact.country_code} {contact.phone}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {contact.email ? (
+                        <div className="flex items-center gap-2">
+                          <Mail className="h-4 w-4 text-gray-400" />
+                          <span className="truncate max-w-[200px]">{contact.email}</span>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {contact.city ? (
+                        <div className="flex items-center gap-2">
+                          <MapPin className="h-4 w-4 text-gray-400" />
+                          <span>{contact.city}</span>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {contact.document_type && contact.document_number ? (
+                        <Badge variant="secondary" className="text-xs">
+                          {contact.document_type}: {contact.document_number}
+                        </Badge>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <Calendar className="h-4 w-4" />
+                        <span>{formatDate(contact.created_at)}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedContact(contact)}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Dialogs */}
       <CreateContactDialog
