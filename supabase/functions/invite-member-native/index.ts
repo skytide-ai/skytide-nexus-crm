@@ -39,14 +39,27 @@ serve(async (req) => {
     // Extract the JWT token from the header
     const token = authHeader.replace('Bearer ', '');
 
-    // Create admin client for all operations
+    // Create Supabase client with service role for admin operations
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Verify user authentication
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+    // Create client with user token for verification
+    const supabaseUser = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        global: {
+          headers: {
+            Authorization: authHeader,
+          },
+        },
+      }
+    );
+
+    // Verify user authentication using the user token
+    const { data: { user }, error: authError } = await supabaseUser.auth.getUser();
     
     if (authError || !user) {
       console.error('Authentication failed:', authError?.message);
@@ -61,7 +74,7 @@ serve(async (req) => {
 
     console.log('User authenticated:', user.id);
 
-    // Get user profile
+    // Get user profile using admin client
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('role, organization_id, first_name, last_name')
@@ -108,7 +121,7 @@ serve(async (req) => {
 
     console.log('Invitation data:', { email, firstName, lastName });
 
-    // Check if user already exists
+    // Check if user already exists using admin client
     const { data: existingUser } = await supabaseAdmin
       .from('profiles')
       .select('id')
@@ -126,7 +139,7 @@ serve(async (req) => {
       );
     }
 
-    // Get organization name
+    // Get organization name using admin client
     const { data: organization } = await supabaseAdmin
       .from('organizations')
       .select('name')
