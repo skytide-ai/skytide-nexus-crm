@@ -39,18 +39,22 @@ export default function AcceptInvitation() {
 
   const validateInvitation = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('accept-invitation', {
-        method: 'GET',
-        body: { token },
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      const response = await fetch(
+        `https://fyyzaysmpephomhmudxt.supabase.co/functions/v1/accept-invitation?token=${token}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
 
-      if (error) {
-        console.error('Error validating invitation:', error);
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error('Error validating invitation:', data);
         setStatus('error');
-        setMessage('Error al validar la invitación. Por favor, verifica el enlace.');
+        setMessage(data.error || 'Error al validar la invitación. Por favor, verifica el enlace.');
         return;
       }
 
@@ -85,17 +89,26 @@ export default function AcceptInvitation() {
     setMessage('');
 
     try {
-      const { data, error } = await supabase.functions.invoke('accept-invitation', {
-        body: {
-          token,
-          password
+      const response = await fetch(
+        'https://fyyzaysmpephomhmudxt.supabase.co/functions/v1/accept-invitation',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            token,
+            password
+          })
         }
-      });
+      );
 
-      if (error) {
-        console.error('Error accepting invitation:', error);
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error('Error accepting invitation:', data);
         setStatus('form');
-        setMessage('Error al crear la cuenta: ' + error.message);
+        setMessage(data.error || 'Error al crear la cuenta');
         return;
       }
 
