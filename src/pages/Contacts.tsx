@@ -40,30 +40,24 @@ export default function Contacts() {
 
   return (
     <div className="space-y-6">
-      {/* Header with Total Count */}
+      {/* Header with Title and Badge */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-6">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Contactos</h1>
-            <p className="text-gray-600 mt-1">
-              Gestiona tu base de datos de contactos y clientes
-            </p>
-          </div>
-          <div className="flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Users className="h-6 w-6 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-blue-700">Total de Contactos</p>
-              <p className="text-2xl font-bold text-blue-900">{contacts.length}</p>
-            </div>
-          </div>
+        <div className="flex items-center gap-3">
+          <h1 className="text-3xl font-bold text-gray-900">Contactos</h1>
+          <Badge variant="secondary" className="flex items-center gap-1 px-3 py-1">
+            <Users className="h-4 w-4" />
+            <span className="font-semibold">{contacts.length}</span>
+          </Badge>
         </div>
         <Button onClick={() => setShowCreateDialog(true)} className="flex items-center gap-2">
           <Plus className="h-4 w-4" />
           Nuevo Contacto
         </Button>
       </div>
+
+      <p className="text-gray-600 -mt-4">
+        Gestiona tu base de datos de contactos y clientes
+      </p>
 
       {/* Search */}
       <Card>
