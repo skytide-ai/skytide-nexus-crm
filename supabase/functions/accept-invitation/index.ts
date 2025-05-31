@@ -14,24 +14,30 @@ interface AcceptInvitationRequest {
 
 serve(async (req) => {
   console.log('=== Accept invitation function started ===');
+  console.log('Method:', req.method);
+  console.log('URL:', req.url);
   
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Create Supabase client
+    // Create Supabase client with service role (no auth required)
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
     if (req.method === 'GET') {
-      // Validate invitation token - NO AUTHORIZATION REQUIRED
+      console.log('Processing GET request - validate invitation');
+      
       const url = new URL(req.url);
       const token = url.searchParams.get('token');
+      
+      console.log('Token received:', token ? 'YES' : 'NO');
 
       if (!token) {
+        console.log('No token provided');
         return new Response(
           JSON.stringify({ error: 'Token requerido' }),
           {
@@ -40,6 +46,8 @@ serve(async (req) => {
           }
         );
       }
+
+      console.log('Looking up invitation with token:', token);
 
       // Get invitation details
       const { data: invitation, error: invitationError } = await supabaseAdmin
@@ -59,9 +67,12 @@ serve(async (req) => {
         .single();
 
       if (invitationError || !invitation) {
-        console.error('Invitation not found:', invitationError?.message);
+        console.error('Invitation lookup error:', invitationError?.message);
         return new Response(
-          JSON.stringify({ error: 'Invitación no encontrada o inválida' }),
+          JSON.stringify({ 
+            error: 'Invitación no encontrada o inválida',
+            details: invitationError?.message 
+          }),
           {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 404,
@@ -69,8 +80,11 @@ serve(async (req) => {
         );
       }
 
+      console.log('Invitation found:', invitation.email);
+
       // Check if invitation is still valid
       if (invitation.status !== 'pending') {
+        console.log('Invitation status is not pending:', invitation.status);
         return new Response(
           JSON.stringify({ error: 'Esta invitación ya ha sido utilizada' }),
           {
@@ -81,6 +95,7 @@ serve(async (req) => {
       }
 
       if (new Date(invitation.expires_at) < new Date()) {
+        console.log('Invitation has expired');
         return new Response(
           JSON.stringify({ error: 'Esta invitación ha expirado' }),
           {
@@ -89,6 +104,8 @@ serve(async (req) => {
           }
         );
       }
+
+      console.log('Invitation is valid, returning details');
 
       // Return invitation details for the frontend
       return new Response(
@@ -109,10 +126,14 @@ serve(async (req) => {
     }
 
     if (req.method === 'POST') {
-      // Accept invitation and create user - NO AUTHORIZATION REQUIRED
+      console.log('Processing POST request - accept invitation');
+      
       const { token, password }: AcceptInvitationRequest = await req.json();
+      
+      console.log('POST data received:', { hasToken: !!token, hasPassword: !!password });
 
       if (!token || !password) {
+        console.log('Missing required data');
         return new Response(
           JSON.stringify({ error: 'Token y contraseña requeridos' }),
           {
@@ -121,6 +142,8 @@ serve(async (req) => {
           }
         );
       }
+
+      console.log('Looking up invitation for acceptance:', token);
 
       // Get invitation details
       const { data: invitation, error: invitationError } = await supabaseAdmin
@@ -131,7 +154,7 @@ serve(async (req) => {
         .single();
 
       if (invitationError || !invitation) {
-        console.error('Invitation not found:', invitationError?.message);
+        console.error('Invitation not found for acceptance:', invitationError?.message);
         return new Response(
           JSON.stringify({ error: 'Invitación no encontrada o inválida' }),
           {
@@ -143,6 +166,7 @@ serve(async (req) => {
 
       // Check if invitation is expired
       if (new Date(invitation.expires_at) < new Date()) {
+        console.log('Invitation expired during acceptance');
         return new Response(
           JSON.stringify({ error: 'Esta invitación ha expirado' }),
           {
@@ -151,6 +175,8 @@ serve(async (req) => {
           }
         );
       }
+
+      console.log('Creating user with Supabase Auth');
 
       // Create user in Supabase Auth
       const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
@@ -210,6 +236,7 @@ serve(async (req) => {
       );
     }
 
+    console.log('Method not allowed:', req.method);
     return new Response(
       JSON.stringify({ error: 'Método no permitido' }),
       {
@@ -219,9 +246,12 @@ serve(async (req) => {
     );
 
   } catch (error: any) {
-    console.error('Unexpected error:', error);
+    console.error('Unexpected error in accept-invitation function:', error);
     return new Response(
-      JSON.stringify({ error: 'Error interno del servidor: ' + error.message }),
+      JSON.stringify({ 
+        error: 'Error interno del servidor: ' + error.message,
+        stack: error.stack 
+      }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
