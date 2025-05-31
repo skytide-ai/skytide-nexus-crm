@@ -170,7 +170,7 @@ serve(async (req) => {
     console.log('Sending email to:', email);
 
     const { error: emailError } = await resend.emails.send({
-      from: 'Skytide CRM <noreply@resend.dev>',
+      from: 'Skytide CRM <noreply@updates.skytidecrm.com>',
       to: [email],
       subject: `Invitación a ${organization?.name || 'la organización'}`,
       html: `
