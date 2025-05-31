@@ -1,18 +1,17 @@
 
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { useCreateAppointment } from '@/hooks/useAppointments';
-import { useServices } from '@/hooks/useServices';
 import { useMembers } from '@/hooks/useMembers';
-import { useContacts, useCreateContact } from '@/hooks/useContacts';
+import { useServices } from '@/hooks/useServices';
+import { useContacts } from '@/hooks/useContacts';
+import { useCreateAppointment, CreateAppointmentData } from '@/hooks/useAppointments';
 import { format } from 'date-fns';
-import { Plus, Search } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Plus } from 'lucide-react';
 
 interface CreateAppointmentDialogProps {
   open: boolean;
@@ -21,378 +20,233 @@ interface CreateAppointmentDialogProps {
 }
 
 export function CreateAppointmentDialog({ open, onOpenChange, selectedDate }: CreateAppointmentDialogProps) {
-  const [step, setStep] = useState<'contact' | 'appointment'>('contact');
-  const [searchContact, setSearchContact] = useState('');
-  const [selectedContact, setSelectedContact] = useState<any>(null);
+  const [formData, setFormData] = useState<Partial<CreateAppointmentData>>({
+    appointment_date: format(selectedDate, 'yyyy-MM-dd'),
+    start_time: '09:00',
+    end_time: '10:00',
+    notes: '',
+    status: 'agendada'
+  });
   const [showCreateContact, setShowCreateContact] = useState(false);
-  
-  // Contact form data
-  const [contactForm, setContactForm] = useState({
+  const [newContactData, setNewContactData] = useState({
     first_name: '',
     last_name: '',
     phone: '',
-    email: '',
+    email: ''
   });
 
-  // Appointment form data
-  const [appointmentForm, setAppointmentForm] = useState({
-    appointment_date: format(selectedDate, 'yyyy-MM-dd'),
-    start_time: '',
-    end_time: '',
-    service_id: '',
-    member_id: '',
-    notes: '',
-  });
-
-  const createAppointment = useCreateAppointment();
-  const createContact = useCreateContact();
-  const { data: services = [] } = useServices();
   const { members } = useMembers();
-  const { data: contacts = [] } = useContacts();
+  const { services } = useServices();
+  const { contacts } = useContacts();
+  const createAppointment = useCreateAppointment();
 
-  // Filtrar contactos por búsqueda
-  const filteredContacts = contacts.filter(contact =>
-    `${contact.first_name} ${contact.last_name}`.toLowerCase().includes(searchContact.toLowerCase()) ||
-    contact.phone.includes(searchContact)
-  );
-
-  const handleContactSelect = (contact: any) => {
-    setSelectedContact(contact);
-    setStep('appointment');
-  };
-
-  const handleCreateContact = async () => {
-    if (!contactForm.first_name || !contactForm.last_name || !contactForm.phone) {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.contact_id || !formData.member_id || !formData.start_time || !formData.end_time) {
       return;
     }
 
-    try {
-      const newContact = await createContact.mutateAsync({
-        first_name: contactForm.first_name,
-        last_name: contactForm.last_name,
-        phone: contactForm.phone,
-        country_code: '+57',
-        email: contactForm.email,
-      });
-      
-      setSelectedContact(newContact);
-      setShowCreateContact(false);
-      setStep('appointment');
-      setContactForm({
-        first_name: '',
-        last_name: '',
-        phone: '',
-        email: '',
-      });
-    } catch (error) {
-      console.error('Error creating contact:', error);
-    }
+    await createAppointment.mutateAsync(formData as CreateAppointmentData);
+    onOpenChange(false);
+    resetForm();
   };
 
-  const handleCreateAppointment = async () => {
-    if (!selectedContact || !appointmentForm.start_time || !appointmentForm.end_time) {
-      return;
-    }
-
-    try {
-      await createAppointment.mutateAsync({
-        contact_id: selectedContact.id,
-        appointment_date: appointmentForm.appointment_date,
-        start_time: appointmentForm.start_time,
-        end_time: appointmentForm.end_time,
-        service_id: appointmentForm.service_id || undefined,
-        member_id: appointmentForm.member_id || undefined,
-        notes: appointmentForm.notes || undefined,
-      });
-
-      // Reset form
-      setStep('contact');
-      setSelectedContact(null);
-      setSearchContact('');
-      setAppointmentForm({
-        appointment_date: format(selectedDate, 'yyyy-MM-dd'),
-        start_time: '',
-        end_time: '',
-        service_id: '',
-        member_id: '',
-        notes: '',
-      });
-      
-      onOpenChange(false);
-    } catch (error) {
-      console.error('Error creating appointment:', error);
-    }
-  };
-
-  const handleBack = () => {
-    if (step === 'appointment') {
-      setStep('contact');
-      setSelectedContact(null);
-    }
-  };
-
-  const resetDialog = () => {
-    setStep('contact');
-    setSelectedContact(null);
-    setSearchContact('');
+  const resetForm = () => {
+    setFormData({
+      appointment_date: format(selectedDate, 'yyyy-MM-dd'),
+      start_time: '09:00',
+      end_time: '10:00',
+      notes: '',
+      status: 'agendada'
+    });
     setShowCreateContact(false);
-    setContactForm({
+    setNewContactData({
       first_name: '',
       last_name: '',
       phone: '',
-      email: '',
-    });
-    setAppointmentForm({
-      appointment_date: format(selectedDate, 'yyyy-MM-dd'),
-      start_time: '',
-      end_time: '',
-      service_id: '',
-      member_id: '',
-      notes: '',
+      email: ''
     });
   };
 
+  // Calcular hora de fin automáticamente basada en duración del servicio
+  const handleServiceChange = (serviceId: string) => {
+    const service = services.find(s => s.id === serviceId);
+    if (service && formData.start_time) {
+      const startTime = new Date(`2000-01-01T${formData.start_time}:00`);
+      const endTime = new Date(startTime.getTime() + service.duration_minutes * 60000);
+      const endTimeString = endTime.toTimeString().slice(0, 5);
+      
+      setFormData(prev => ({
+        ...prev,
+        service_id: serviceId,
+        end_time: endTimeString
+      }));
+    } else {
+      setFormData(prev => ({ ...prev, service_id: serviceId }));
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={(open) => {
-      onOpenChange(open);
-      if (!open) resetDialog();
-    }}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Nueva Cita</DialogTitle>
-          <DialogDescription>
-            {step === 'contact' ? 'Selecciona o crea un contacto' : 'Configura los detalles de la cita'}
-          </DialogDescription>
         </DialogHeader>
 
-        {step === 'contact' && (
-          <div className="space-y-4">
-            {!showCreateContact ? (
-              <>
-                {/* Búsqueda de contactos */}
-                <div className="space-y-2">
-                  <Label>Buscar contacto</Label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                    <Input
-                      placeholder="Buscar por nombre o teléfono..."
-                      value={searchContact}
-                      onChange={(e) => setSearchContact(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                </div>
-
-                {/* Lista de contactos */}
-                <div className="max-h-60 overflow-y-auto space-y-2">
-                  {filteredContacts.map((contact) => (
-                    <div
-                      key={contact.id}
-                      className="p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
-                      onClick={() => handleContactSelect(contact)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium">
-                            {contact.first_name} {contact.last_name}
-                          </p>
-                          <p className="text-sm text-gray-600">{contact.phone}</p>
-                        </div>
-                        <Badge variant="outline">Seleccionar</Badge>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {searchContact && filteredContacts.length === 0 && (
-                  <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
-                    <p className="text-gray-600 mb-4">No se encontró el contacto</p>
-                    <Button onClick={() => setShowCreateContact(true)}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Crear nuevo contacto
-                    </Button>
-                  </div>
-                )}
-
-                {!searchContact && (
-                  <div className="text-center py-4">
-                    <Button onClick={() => setShowCreateContact(true)} variant="outline">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Crear nuevo contacto
-                    </Button>
-                  </div>
-                )}
-              </>
-            ) : (
-              <>
-                {/* Formulario de crear contacto */}
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="first_name">Nombre *</Label>
-                      <Input
-                        id="first_name"
-                        value={contactForm.first_name}
-                        onChange={(e) => setContactForm(prev => ({ ...prev, first_name: e.target.value }))}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="last_name">Apellido *</Label>
-                      <Input
-                        id="last_name"
-                        value={contactForm.last_name}
-                        onChange={(e) => setContactForm(prev => ({ ...prev, last_name: e.target.value }))}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Teléfono *</Label>
-                    <Input
-                      id="phone"
-                      value={contactForm.phone}
-                      onChange={(e) => setContactForm(prev => ({ ...prev, phone: e.target.value }))}
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={contactForm.email}
-                      onChange={(e) => setContactForm(prev => ({ ...prev, email: e.target.value }))}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex justify-between pt-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setShowCreateContact(false)}
-                  >
-                    Volver
-                  </Button>
-                  <Button
-                    onClick={handleCreateContact}
-                    disabled={createContact.isPending || !contactForm.first_name || !contactForm.last_name || !contactForm.phone}
-                  >
-                    {createContact.isPending ? 'Creando...' : 'Crear y Continuar'}
-                  </Button>
-                </div>
-              </>
-            )}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label htmlFor="date">Fecha</Label>
+            <Input
+              id="date"
+              type="date"
+              value={formData.appointment_date}
+              onChange={(e) => setFormData(prev => ({ ...prev, appointment_date: e.target.value }))}
+              required
+            />
           </div>
-        )}
 
-        {step === 'appointment' && selectedContact && (
-          <div className="space-y-4">
-            {/* Contacto seleccionado */}
-            <div className="p-3 bg-gray-50 rounded-lg">
-              <p className="font-medium">{selectedContact.first_name} {selectedContact.last_name}</p>
-              <p className="text-sm text-gray-600">{selectedContact.phone}</p>
-            </div>
-
-            {/* Fecha */}
-            <div className="space-y-2">
-              <Label htmlFor="appointment_date">Fecha de la Cita</Label>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="start_time">Hora inicio</Label>
               <Input
-                id="appointment_date"
-                type="date"
-                value={appointmentForm.appointment_date}
-                onChange={(e) => setAppointmentForm(prev => ({ ...prev, appointment_date: e.target.value }))}
+                id="start_time"
+                type="time"
+                value={formData.start_time}
+                onChange={(e) => setFormData(prev => ({ ...prev, start_time: e.target.value }))}
                 required
               />
             </div>
-
-            {/* Horarios */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="start_time">Hora de Inicio *</Label>
-                <Input
-                  id="start_time"
-                  type="time"
-                  value={appointmentForm.start_time}
-                  onChange={(e) => setAppointmentForm(prev => ({ ...prev, start_time: e.target.value }))}
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="end_time">Hora de Fin *</Label>
-                <Input
-                  id="end_time"
-                  type="time"
-                  value={appointmentForm.end_time}
-                  onChange={(e) => setAppointmentForm(prev => ({ ...prev, end_time: e.target.value }))}
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Servicio */}
-            <div className="space-y-2">
-              <Label>Servicio</Label>
-              <Select value={appointmentForm.service_id} onValueChange={(value) => setAppointmentForm(prev => ({ ...prev, service_id: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar servicio (opcional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  {services.filter(s => s.is_active).map((service) => (
-                    <SelectItem key={service.id} value={service.id}>
-                      {service.name} ({service.duration_minutes} min)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Miembro */}
-            <div className="space-y-2">
-              <Label>Profesional</Label>
-              <Select value={appointmentForm.member_id} onValueChange={(value) => setAppointmentForm(prev => ({ ...prev, member_id: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar profesional (opcional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  {members.filter(m => m.is_active).map((member) => (
-                    <SelectItem key={member.id} value={member.id}>
-                      {member.first_name} {member.last_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Notas */}
-            <div className="space-y-2">
-              <Label htmlFor="notes">Notas</Label>
-              <Textarea
-                id="notes"
-                placeholder="Notas adicionales sobre la cita..."
-                value={appointmentForm.notes}
-                onChange={(e) => setAppointmentForm(prev => ({ ...prev, notes: e.target.value }))}
-                rows={3}
+            <div>
+              <Label htmlFor="end_time">Hora fin</Label>
+              <Input
+                id="end_time"
+                type="time"
+                value={formData.end_time}
+                onChange={(e) => setFormData(prev => ({ ...prev, end_time: e.target.value }))}
+                required
               />
             </div>
+          </div>
 
-            <div className="flex justify-between pt-4">
-              <Button type="button" variant="outline" onClick={handleBack}>
-                Volver
-              </Button>
-              <Button 
-                onClick={handleCreateAppointment} 
-                disabled={createAppointment.isPending || !appointmentForm.start_time || !appointmentForm.end_time}
+          <div>
+            <Label>Miembro</Label>
+            <Select
+              value={formData.member_id}
+              onValueChange={(value) => setFormData(prev => ({ ...prev, member_id: value }))}
+              required
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Seleccionar miembro" />
+              </SelectTrigger>
+              <SelectContent>
+                {members.filter(m => m.is_active).map((member) => (
+                  <SelectItem key={member.id} value={member.id}>
+                    {member.first_name} {member.last_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label>Servicio</Label>
+            <Select
+              value={formData.service_id}
+              onValueChange={handleServiceChange}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Seleccionar servicio (opcional)" />
+              </SelectTrigger>
+              <SelectContent>
+                {services.filter(s => s.is_active).map((service) => (
+                  <SelectItem key={service.id} value={service.id}>
+                    {service.name} ({service.duration_minutes} min)
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <Label>Contacto</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowCreateContact(!showCreateContact)}
               >
-                {createAppointment.isPending ? 'Creando...' : 'Crear Cita'}
+                <Plus className="h-4 w-4 mr-1" />
+                Crear nuevo
               </Button>
             </div>
+            
+            {!showCreateContact ? (
+              <Select
+                value={formData.contact_id}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, contact_id: value }))}
+                required
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar contacto" />
+                </SelectTrigger>
+                <SelectContent>
+                  {contacts.map((contact) => (
+                    <SelectItem key={contact.id} value={contact.id}>
+                      {contact.first_name} {contact.last_name} - {contact.phone}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <div className="space-y-3 p-3 border rounded-lg">
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    placeholder="Nombre"
+                    value={newContactData.first_name}
+                    onChange={(e) => setNewContactData(prev => ({ ...prev, first_name: e.target.value }))}
+                  />
+                  <Input
+                    placeholder="Apellido"
+                    value={newContactData.last_name}
+                    onChange={(e) => setNewContactData(prev => ({ ...prev, last_name: e.target.value }))}
+                  />
+                </div>
+                <Input
+                  placeholder="Teléfono"
+                  value={newContactData.phone}
+                  onChange={(e) => setNewContactData(prev => ({ ...prev, phone: e.target.value }))}
+                />
+                <Input
+                  placeholder="Email (opcional)"
+                  type="email"
+                  value={newContactData.email}
+                  onChange={(e) => setNewContactData(prev => ({ ...prev, email: e.target.value }))}
+                />
+              </div>
+            )}
           </div>
-        )}
+
+          <div>
+            <Label htmlFor="notes">Notas (opcional)</Label>
+            <Textarea
+              id="notes"
+              value={formData.notes}
+              onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+              placeholder="Información adicional..."
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={createAppointment.isPending}>
+              {createAppointment.isPending ? 'Creando...' : 'Crear Cita'}
+            </Button>
+          </div>
+        </form>
       </DialogContent>
     </Dialog>
   );

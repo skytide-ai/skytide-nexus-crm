@@ -11,6 +11,7 @@ import Members from '@/pages/Members';
 import Services from '@/pages/Services';
 import { Availability } from '@/pages/Availability';
 import Contacts from '@/pages/Contacts';
+import Calendar from '@/pages/Calendar';
 import AcceptInvitation from '@/pages/AcceptInvitation';
 import SetPassword from '@/pages/SetPassword';
 import NotFound from '@/pages/NotFound';
@@ -46,6 +47,7 @@ function App() {
                       <Route path="/services" element={<Services />} />
                       <Route path="/availability" element={<Availability />} />
                       <Route path="/contacts" element={<Contacts />} />
+                      <Route path="/calendar" element={<Calendar />} />
                       <Route path="*" element={<NotFound />} />
                     </Routes>
                   </Layout>
