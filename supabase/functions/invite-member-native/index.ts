@@ -139,26 +139,25 @@ serve(async (req) => {
     
     console.log('Using redirect URL:', redirectUrl);
 
-    // Use inviteUserByEmail directly since SMTP is now configured
-    console.log('Sending invitation email via Supabase with SMTP...');
-    const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+    // Step 1: Create user with confirmed email and temporary password
+    console.log('Creating user with temporary password...');
+    const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
-      {
-        redirectTo: redirectUrl,
-        data: {
-          first_name: firstName,
-          last_name: lastName,
-          organization_id: profile.organization_id,
-          invited_by: profile.first_name + ' ' + profile.last_name,
-          organization_name: organization?.name || 'la organización'
-        }
+      email_confirm: true, // Automatically confirm email
+      password: crypto.randomUUID(), // Generate temporary random password
+      user_metadata: {
+        first_name: firstName,
+        last_name: lastName,
+        organization_id: profile.organization_id,
+        invited_by: profile.first_name + ' ' + profile.last_name,
+        organization_name: organization?.name || 'la organización'
       }
-    );
+    });
 
-    if (inviteError) {
-      console.error('Error sending invitation:', inviteError);
+    if (createError) {
+      console.error('Error creating user:', createError);
       return new Response(
-        JSON.stringify({ error: 'Error al enviar la invitación: ' + inviteError.message }),
+        JSON.stringify({ error: 'Error al crear el usuario: ' + createError.message }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 400,
@@ -166,15 +165,33 @@ serve(async (req) => {
       );
     }
 
-    console.log('Invitation sent successfully via Supabase SMTP');
-    console.log('Invite response:', inviteData);
+    console.log('User created successfully:', newUser.user.id);
+
+    // Step 2: Send password reset email (this will force user to set their own password)
+    console.log('Sending password reset email...');
+    const { error: resetError } = await supabaseAdmin.auth.resetPasswordForEmail(email, {
+      redirectTo: redirectUrl
+    });
+
+    if (resetError) {
+      console.error('Error sending password reset email:', resetError);
+      return new Response(
+        JSON.stringify({ error: 'Error al enviar el email de invitación: ' + resetError.message }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        }
+      );
+    }
+
+    console.log('Password reset email sent successfully');
     console.log('=== Native member invitation completed successfully ===');
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'Invitación enviada correctamente. El usuario recibirá un email para activar su cuenta.',
-        user_data: inviteData
+        message: 'Invitación enviada correctamente. El usuario recibirá un email para establecer su contraseña y activar su cuenta.',
+        user_data: newUser
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
