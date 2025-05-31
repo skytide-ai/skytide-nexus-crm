@@ -133,53 +133,32 @@ serve(async (req) => {
       .eq('id', profile.organization_id)
       .single();
 
-    // Step 1: Create user with confirmed email and temporary random password
-    const temporaryPassword = crypto.randomUUID();
-    
-    console.log('Creating user with temporary password...');
-    const { data: newUser, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      email_confirm: true,
-      password: temporaryPassword,
-      user_metadata: {
-        first_name: firstName,
-        last_name: lastName,
-        organization_id: profile.organization_id,
-        invited_by: profile.first_name + ' ' + profile.last_name,
-        organization_name: organization?.name || 'la organización'
-      }
-    });
-
-    if (createUserError) {
-      console.error('Error creating user:', createUserError);
-      return new Response(
-        JSON.stringify({ error: 'Error al crear el usuario: ' + createUserError.message }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 400,
-        }
-      );
-    }
-
-    console.log('User created successfully:', newUser.user?.id);
-
-    // Step 2: Generate recovery link for password setup
-    // Get the origin from the request or use a default
+    // Get the origin from the request for redirect URL
     const origin = req.headers.get('origin') || req.headers.get('referer')?.split('/').slice(0, 3).join('/');
     const redirectUrl = `${origin}/auth`;
     
-    console.log('Generating recovery link with redirect URL:', redirectUrl);
-    
-    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'recovery',
-      email,
-      redirectTo: redirectUrl
-    });
+    console.log('Using redirect URL:', redirectUrl);
 
-    if (linkError) {
-      console.error('Error generating recovery link:', linkError);
+    // Use inviteUserByEmail directly since SMTP is now configured
+    console.log('Sending invitation email via Supabase with SMTP...');
+    const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+      email,
+      {
+        redirectTo: redirectUrl,
+        data: {
+          first_name: firstName,
+          last_name: lastName,
+          organization_id: profile.organization_id,
+          invited_by: profile.first_name + ' ' + profile.last_name,
+          organization_name: organization?.name || 'la organización'
+        }
+      }
+    );
+
+    if (inviteError) {
+      console.error('Error sending invitation:', inviteError);
       return new Response(
-        JSON.stringify({ error: 'Error al generar el enlace de invitación: ' + linkError.message }),
+        JSON.stringify({ error: 'Error al enviar la invitación: ' + inviteError.message }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 400,
@@ -187,44 +166,15 @@ serve(async (req) => {
       );
     }
 
-    console.log('Recovery link generated successfully');
-    console.log('Action link:', linkData.action_link);
-    
-    // Step 3: Try to trigger the email sending by using inviteUserByEmail as well
-    // This is a fallback to ensure the email is sent
-    console.log('Attempting to send email via inviteUserByEmail as backup...');
-    try {
-      const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
-        email,
-        {
-          redirectTo: redirectUrl,
-          data: {
-            first_name: firstName,
-            last_name: lastName,
-            organization_id: profile.organization_id,
-            invited_by: profile.first_name + ' ' + profile.last_name,
-            organization_name: organization?.name || 'la organización'
-          }
-        }
-      );
-      
-      if (inviteError) {
-        console.log('Invite email failed (expected):', inviteError.message);
-      } else {
-        console.log('Invite email sent successfully as backup');
-      }
-    } catch (e) {
-      console.log('Invite email attempt failed (this is expected if user already exists)');
-    }
-
+    console.log('Invitation sent successfully via Supabase SMTP');
+    console.log('Invite response:', inviteData);
     console.log('=== Native member invitation completed successfully ===');
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'Invitación enviada correctamente. El usuario recibirá un email para establecer su contraseña.',
-        action_link: linkData.action_link,
-        user_id: newUser.user?.id
+        message: 'Invitación enviada correctamente. El usuario recibirá un email para activar su cuenta.',
+        user_data: inviteData
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -237,7 +187,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ error: 'Error interno del servidor: ' + error.message }),
       {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
       }
     );
