@@ -106,14 +106,17 @@ export function useCreateAppointment() {
 
       // Validar disponibilidad usando la función de base de datos
       if (appointmentData.member_id) {
-        const { data: isAvailable, error: availabilityError } = await supabase
-          .rpc('check_appointment_availability', {
+        // Usar una llamada RPC más flexible para evitar problemas de tipos
+        const { data: isAvailable, error: availabilityError } = await supabase.rpc(
+          'check_appointment_availability' as any,
+          {
             p_member_id: appointmentData.member_id,
             p_appointment_date: appointmentData.appointment_date,
             p_start_time: appointmentData.start_time,
             p_end_time: appointmentData.end_time,
             p_organization_id: profile.organization_id
-          });
+          }
+        );
 
         if (availabilityError) {
           console.error('Error checking availability:', availabilityError);
