@@ -177,13 +177,13 @@ serve(async (req) => {
 
     console.log('Invitation created with token:', invitation.token);
 
-    // Send invitation email
+    // Send invitation email using verified domain
     const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
     const appUrl = req.headers.get('origin') || 'https://fyyzaysmpephomhmudxt.lovable.app';
     const invitationUrl = `${appUrl}/aceptar-invitacion?token=${invitation.token}`;
 
     const emailResponse = await resend.emails.send({
-      from: "CRM <onboarding@resend.dev>",
+      from: "CRM SkyTide <noreply@updates.skytidecrm.com>",
       to: [email],
       subject: `Invitación para unirse a ${organization?.name || 'la organización'}`,
       html: `
@@ -206,7 +206,7 @@ serve(async (req) => {
     if (emailResponse.error) {
       console.error('Error sending email:', emailResponse.error);
       return new Response(
-        JSON.stringify({ error: 'Error al enviar el email de invitación' }),
+        JSON.stringify({ error: 'Error al enviar el email de invitación: ' + emailResponse.error.message }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 400,
