@@ -142,7 +142,15 @@ export function useCreateAppointment() {
       // Validar disponibilidad del miembro
       if (appointmentData.member_id) {
         const appointmentDate = new Date(appointmentData.appointment_date);
-        const dayOfWeek = appointmentDate.getDay();
+        const dayOfWeek = appointmentDate.getDay(); // 0 = domingo, 1 = lunes, etc.
+        
+        console.log('Validating availability for:', {
+          memberId: appointmentData.member_id,
+          appointmentDate: appointmentData.appointment_date,
+          dayOfWeek,
+          startTime: appointmentData.start_time,
+          endTime: appointmentData.end_time
+        });
         
         // Verificar disponibilidad regular del miembro
         const { data: availability, error: availabilityError } = await supabase
@@ -150,26 +158,37 @@ export function useCreateAppointment() {
           .select('*')
           .eq('member_id', appointmentData.member_id)
           .eq('day_of_week', dayOfWeek)
-          .eq('is_available', true)
-          .single();
+          .eq('is_available', true);
 
-        if (availabilityError || !availability) {
+        console.log('Member availability found:', availability);
+
+        if (availabilityError) {
+          console.error('Error checking availability:', availabilityError);
+          throw new Error('Error al verificar la disponibilidad del miembro.');
+        }
+
+        if (!availability || availability.length === 0) {
           throw new Error('El miembro no está disponible en este día de la semana.');
         }
 
-        // Verificar que la hora esté dentro del horario disponible
+        // Verificar que la hora esté dentro del horario disponible (al menos uno de los slots)
         const startTime = appointmentData.start_time;
         const endTime = appointmentData.end_time;
         
-        if (startTime < availability.start_time || endTime > availability.end_time) {
-          throw new Error('La hora seleccionada está fuera del horario disponible del miembro.');
-        }
-
-        // Verificar si hay descanso y la cita no interfiere
-        if (availability.break_start_time && availability.break_end_time) {
-          if (!(endTime <= availability.break_start_time || startTime >= availability.break_end_time)) {
-            throw new Error('La hora seleccionada interfiere con el horario de descanso del miembro.');
+        const isTimeValid = availability.some(slot => {
+          const isWithinWorkingHours = startTime >= slot.start_time && endTime <= slot.end_time;
+          
+          // Si hay descanso, verificar que la cita no interfiera
+          if (slot.break_start_time && slot.break_end_time) {
+            const doesNotConflictWithBreak = endTime <= slot.break_start_time || startTime >= slot.break_end_time;
+            return isWithinWorkingHours && doesNotConflictWithBreak;
           }
+          
+          return isWithinWorkingHours;
+        });
+
+        if (!isTimeValid) {
+          throw new Error('La hora seleccionada está fuera del horario disponible del miembro.');
         }
 
         // Verificar fechas especiales del miembro
@@ -203,10 +222,14 @@ export function useCreateAppointment() {
         .select('*')
         .eq('organization_id', profile.organization_id)
         .eq('day_of_week', dayOfWeek)
-        .eq('is_available', true)
-        .single();
+        .eq('is_available', true);
 
-      if (orgAvailabilityError || !orgAvailability) {
+      if (orgAvailabilityError) {
+        console.error('Error checking organization availability:', orgAvailabilityError);
+        throw new Error('Error al verificar la disponibilidad de la organización.');
+      }
+
+      if (!orgAvailability || orgAvailability.length === 0) {
         throw new Error('La organización no está disponible en este día de la semana.');
       }
 
