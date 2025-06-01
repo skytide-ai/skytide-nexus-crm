@@ -6,6 +6,8 @@ import { Users } from 'lucide-react';
 import { AppointmentWithDetails } from '@/hooks/useAppointments';
 import { MemberProfile } from '@/types/member';
 import { cn } from '@/lib/utils';
+import { format, isSameDay } from 'date-fns';
+import { formatInTimeZone } from 'date-fns-tz';
 
 interface TimeAgendaViewProps {
   appointments: AppointmentWithDetails[];
@@ -23,6 +25,8 @@ const statusConfig = {
   en_curso: { label: 'En curso', color: 'bg-purple-100 text-purple-800 border-l-purple-500' },
   completada: { label: 'Completada', color: 'bg-gray-100 text-gray-800 border-l-gray-500' },
 };
+
+const BOGOTA_TIMEZONE = 'America/Bogota';
 
 export function TimeAgendaView({ 
   appointments, 
@@ -49,6 +53,34 @@ export function TimeAgendaView({
   };
 
   const timeSlots = generateTimeSlots();
+
+  // Get current time in Bogota timezone
+  const getCurrentTimeInfo = () => {
+    const now = new Date();
+    const currentTimeInBogota = formatInTimeZone(now, BOGOTA_TIMEZONE, 'HH:mm');
+    const isToday = isSameDay(now, selectedDate);
+    
+    const [currentHour, currentMinute] = currentTimeInBogota.split(':').map(Number);
+    
+    return {
+      currentTime: currentTimeInBogota,
+      currentHour,
+      currentMinute,
+      isToday,
+      shouldShowLine: isToday && currentHour >= 6 && currentHour <= 22
+    };
+  };
+
+  const currentTimeInfo = getCurrentTimeInfo();
+
+  // Calculate position for current time line
+  const getCurrentTimePosition = (timeSlot: string) => {
+    const slotHour = parseInt(timeSlot.split(':')[0]);
+    if (slotHour === currentTimeInfo.currentHour) {
+      return (currentTimeInfo.currentMinute / 60) * 60; // 60px per hour
+    }
+    return null;
+  };
 
   // Get appointments for a specific member and time slot
   const getAppointmentsForSlot = (memberId: string, timeSlot: string) => {
@@ -150,60 +182,79 @@ export function TimeAgendaView({
 
         {/* Time slots */}
         <div className="max-h-[600px] overflow-y-auto">
-          {timeSlots.map((timeSlot) => (
-            <div key={timeSlot} className="grid border-b last:border-b-0 min-h-[60px]" style={{ gridTemplateColumns: `80px repeat(${visibleMembers.length}, 1fr)` }}>
-              {/* Time column */}
-              <div className="p-2 border-r bg-gray-50 flex items-start">
-                <span className="text-sm text-gray-600 font-mono">{timeSlot}</span>
-              </div>
-              
-              {/* Member columns */}
-              {visibleMembers.map((member) => {
-                const slotAppointments = getAppointmentsForSlot(member.id, timeSlot);
+          {timeSlots.map((timeSlot) => {
+            const currentTimePosition = getCurrentTimePosition(timeSlot);
+            
+            return (
+              <div key={timeSlot} className="grid border-b last:border-b-0 min-h-[60px]" style={{ gridTemplateColumns: `80px repeat(${visibleMembers.length}, 1fr)` }}>
+                {/* Time column */}
+                <div className="p-2 border-r bg-gray-50 flex items-start relative">
+                  <span className="text-sm text-gray-600 font-mono">{timeSlot}</span>
+                  {/* Current time indicator in time column */}
+                  {currentTimeInfo.shouldShowLine && currentTimePosition !== null && (
+                    <div 
+                      className="absolute right-0 w-2 h-0.5 bg-red-500 z-20"
+                      style={{ top: `${currentTimePosition + 8}px` }}
+                    />
+                  )}
+                </div>
                 
-                return (
-                  <div key={member.id} className="border-r last:border-r-0 relative min-h-[60px] p-1">
-                    {slotAppointments.map((appointment) => {
-                      const style = getAppointmentStyle(appointment, timeSlot);
-                      if (!style) return null;
+                {/* Member columns */}
+                {visibleMembers.map((member) => {
+                  const slotAppointments = getAppointmentsForSlot(member.id, timeSlot);
+                  
+                  return (
+                    <div key={member.id} className="border-r last:border-r-0 relative min-h-[60px] p-1">
+                      {/* Current time line across member columns */}
+                      {currentTimeInfo.shouldShowLine && currentTimePosition !== null && (
+                        <div 
+                          className="absolute left-0 right-0 h-0.5 bg-red-500 z-20"
+                          style={{ top: `${currentTimePosition}px` }}
+                        />
+                      )}
                       
-                      const status = statusConfig[appointment.status];
-                      
-                      return (
-                        <div
-                          key={appointment.id}
-                          style={style}
-                          className={cn(
-                            "rounded border-l-4 p-2 text-xs shadow-sm cursor-pointer hover:shadow-md transition-shadow",
-                            status.color
-                          )}
-                        >
-                          <div className="flex items-start justify-between gap-1">
-                            <div className="flex-1 min-w-0">
-                              <div className="font-medium text-gray-900 truncate">
-                                {appointment.contacts.first_name} {appointment.contacts.last_name}
-                              </div>
-                              <div className="text-gray-600 truncate text-xs">
-                                {appointment.start_time} - {appointment.end_time}
-                              </div>
-                              {appointment.services && (
-                                <div className="text-gray-600 truncate text-xs">
-                                  {appointment.services.name}
+                      {slotAppointments.map((appointment) => {
+                        const style = getAppointmentStyle(appointment, timeSlot);
+                        if (!style) return null;
+                        
+                        const status = statusConfig[appointment.status];
+                        
+                        return (
+                          <div
+                            key={appointment.id}
+                            style={style}
+                            className={cn(
+                              "rounded border-l-4 p-2 text-xs shadow-sm cursor-pointer hover:shadow-md transition-shadow",
+                              status.color
+                            )}
+                          >
+                            <div className="flex items-start justify-between gap-1">
+                              <div className="flex-1 min-w-0">
+                                <div className="font-medium text-gray-900 truncate">
+                                  {appointment.contacts.first_name} {appointment.contacts.last_name}
                                 </div>
-                              )}
+                                <div className="text-gray-600 truncate text-xs">
+                                  {appointment.start_time} - {appointment.end_time}
+                                </div>
+                                {appointment.services && (
+                                  <div className="text-gray-600 truncate text-xs">
+                                    {appointment.services.name}
+                                  </div>
+                                )}
+                              </div>
+                              <Badge className={cn("text-xs shrink-0 ml-1", status.color.replace('border-l-', 'bg-').replace('100', '200'))}>
+                                {status.label}
+                              </Badge>
                             </div>
-                            <Badge className={cn("text-xs shrink-0 ml-1", status.color.replace('border-l-', 'bg-').replace('100', '200'))}>
-                              {status.label}
-                            </Badge>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })}
-            </div>
-          ))}
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
