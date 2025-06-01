@@ -1,4 +1,5 @@
 
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -145,6 +146,13 @@ export function useCreateAppointment() {
         const appointmentDate = new Date(appointmentData.appointment_date);
         const dayOfWeek = appointmentDate.getDay(); // 0 = domingo, 1 = lunes, etc.
         
+        console.log('=== DEBUGGING AVAILABILITY ===');
+        console.log('Appointment date string:', appointmentData.appointment_date);
+        console.log('Appointment date object:', appointmentDate);
+        console.log('Day of week calculated:', dayOfWeek);
+        console.log('Day names: 0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday');
+        console.log('Current day name:', ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dayOfWeek]);
+        
         console.log('Validating availability for:', {
           memberId: appointmentData.member_id,
           appointmentDate: appointmentData.appointment_date,
@@ -154,8 +162,17 @@ export function useCreateAppointment() {
           organizationId: profile.organization_id
         });
         
-        // Verificar disponibilidad regular del miembro con más debug
-        const availabilityQuery = supabase
+        // Primero, veamos TODA la disponibilidad del miembro para debug
+        const { data: allMemberAvailability } = await supabase
+          .from('member_availability')
+          .select('*')
+          .eq('member_id', appointmentData.member_id)
+          .eq('organization_id', profile.organization_id);
+
+        console.log('ALL member availability records:', allMemberAvailability);
+
+        // Ahora verificar disponibilidad regular del miembro para el día específico
+        const { data: availability, error: availabilityError } = await supabase
           .from('member_availability')
           .select('*')
           .eq('member_id', appointmentData.member_id)
@@ -163,16 +180,7 @@ export function useCreateAppointment() {
           .eq('day_of_week', dayOfWeek)
           .eq('is_available', true);
 
-        console.log('Running availability query with filters:', {
-          member_id: appointmentData.member_id,
-          organization_id: profile.organization_id,
-          day_of_week: dayOfWeek,
-          is_available: true
-        });
-
-        const { data: availability, error: availabilityError } = await availabilityQuery;
-
-        console.log('Member availability query result:', { 
+        console.log('Member availability query result for day', dayOfWeek, ':', { 
           data: availability, 
           error: availabilityError,
           count: availability?.length 
@@ -184,28 +192,29 @@ export function useCreateAppointment() {
         }
 
         if (!availability || availability.length === 0) {
-          // Consulta adicional para debug - ver todos los horarios del miembro
-          const { data: allAvailability } = await supabase
-            .from('member_availability')
-            .select('*')
-            .eq('member_id', appointmentData.member_id)
-            .eq('organization_id', profile.organization_id);
-
-          console.log('All member availability for debug:', allAvailability);
-
-          throw new Error('El miembro no está disponible en este día de la semana.');
+          console.log('No availability found for day', dayOfWeek);
+          console.log('Available days for this member:', allMemberAvailability?.map(a => a.day_of_week));
+          throw new Error(`El miembro no está disponible los ${['domingos', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábados'][dayOfWeek]}.`);
         }
 
-        // Verificar que la hora esté dentro del horario disponible (al menos uno de los slots)
+        // Verificar que la hora esté dentro del horario disponible
         const startTime = appointmentData.start_time;
         const endTime = appointmentData.end_time;
         
         const isTimeValid = availability.some(slot => {
+          console.log('Checking time slot:', slot);
           const isWithinWorkingHours = startTime >= slot.start_time && endTime <= slot.end_time;
+          console.log('Is within working hours?', isWithinWorkingHours, {
+            appointmentStart: startTime,
+            appointmentEnd: endTime,
+            slotStart: slot.start_time,
+            slotEnd: slot.end_time
+          });
           
           // Si hay descanso, verificar que la cita no interfiera
           if (slot.break_start_time && slot.break_end_time) {
             const doesNotConflictWithBreak = endTime <= slot.break_start_time || startTime >= slot.break_end_time;
+            console.log('Does not conflict with break?', doesNotConflictWithBreak);
             return isWithinWorkingHours && doesNotConflictWithBreak;
           }
           
