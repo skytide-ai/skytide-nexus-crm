@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -149,18 +150,33 @@ export function useCreateAppointment() {
           appointmentDate: appointmentData.appointment_date,
           dayOfWeek,
           startTime: appointmentData.start_time,
-          endTime: appointmentData.end_time
+          endTime: appointmentData.end_time,
+          organizationId: profile.organization_id
         });
         
-        // Verificar disponibilidad regular del miembro
-        const { data: availability, error: availabilityError } = await supabase
+        // Verificar disponibilidad regular del miembro con más debug
+        const availabilityQuery = supabase
           .from('member_availability')
           .select('*')
           .eq('member_id', appointmentData.member_id)
+          .eq('organization_id', profile.organization_id)
           .eq('day_of_week', dayOfWeek)
           .eq('is_available', true);
 
-        console.log('Member availability found:', availability);
+        console.log('Running availability query with filters:', {
+          member_id: appointmentData.member_id,
+          organization_id: profile.organization_id,
+          day_of_week: dayOfWeek,
+          is_available: true
+        });
+
+        const { data: availability, error: availabilityError } = await availabilityQuery;
+
+        console.log('Member availability query result:', { 
+          data: availability, 
+          error: availabilityError,
+          count: availability?.length 
+        });
 
         if (availabilityError) {
           console.error('Error checking availability:', availabilityError);
@@ -168,6 +184,15 @@ export function useCreateAppointment() {
         }
 
         if (!availability || availability.length === 0) {
+          // Consulta adicional para debug - ver todos los horarios del miembro
+          const { data: allAvailability } = await supabase
+            .from('member_availability')
+            .select('*')
+            .eq('member_id', appointmentData.member_id)
+            .eq('organization_id', profile.organization_id);
+
+          console.log('All member availability for debug:', allAvailability);
+
           throw new Error('El miembro no está disponible en este día de la semana.');
         }
 
