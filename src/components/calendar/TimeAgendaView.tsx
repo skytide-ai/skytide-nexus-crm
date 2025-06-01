@@ -259,20 +259,24 @@ export function TimeAgendaView({ appointments, members, selectedDate }: TimeAgen
                             status.color
                           )}
                         >
-                          <div className="font-medium text-gray-900 truncate">
-                            {appointment.contacts.first_name} {appointment.contacts.last_name}
-                          </div>
-                          <div className="text-gray-600 truncate">
-                            {appointment.start_time} - {appointment.end_time}
-                          </div>
-                          {appointment.services && (
-                            <div className="text-gray-600 truncate">
-                              {appointment.services.name}
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-gray-900 truncate">
+                                {appointment.contacts.first_name} {appointment.contacts.last_name}
+                              </div>
+                              <div className="text-gray-600 truncate">
+                                {appointment.start_time} - {appointment.end_time}
+                              </div>
+                              {appointment.services && (
+                                <div className="text-gray-600 truncate">
+                                  {appointment.services.name}
+                                </div>
+                              )}
                             </div>
-                          )}
-                          <Badge className={cn("mt-1 text-xs", status.color.replace('border-l-', 'bg-').replace('100', '200'))}>
-                            {status.label}
-                          </Badge>
+                            <Badge className={cn("text-xs shrink-0", status.color.replace('border-l-', 'bg-').replace('100', '200'))}>
+                              {status.label}
+                            </Badge>
+                          </div>
                         </div>
                       );
                     })}
