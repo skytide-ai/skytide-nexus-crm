@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar as CalendarIcon, Plus, List, Grid, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, addDays, subDays } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -19,32 +19,40 @@ import { cn } from '@/lib/utils';
 export default function Calendar() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [viewMode, setViewMode] = useState<'agenda' | 'list'>('agenda');
-  const [selectedMember, setSelectedMember] = useState<string>('all');
+  const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
 
   const { data: appointments = [], isLoading } = useAppointments(selectedDate);
   const { members } = useMembers();
 
-  // Filtrar citas por miembro seleccionado
+  const activeMembers = members.filter(m => m.is_active);
+
+  // Initialize selected members when members are loaded
+  React.useEffect(() => {
+    if (activeMembers.length > 0 && selectedMembers.length === 0) {
+      setSelectedMembers(activeMembers.map(m => m.id));
+    }
+  }, [activeMembers, selectedMembers.length]);
+
+  // Filtrar citas por miembros seleccionados
   const filteredAppointments = appointments.filter(appointment => 
-    selectedMember === 'all' || appointment.member_id === selectedMember
+    selectedMembers.length === 0 || selectedMembers.includes(appointment.member_id || '')
   );
 
-  // Agrupar citas por miembro para vista agenda
-  const appointmentsByMember = filteredAppointments.reduce((acc, appointment) => {
-    const memberId = appointment.member_id || 'unassigned';
-    if (!acc[memberId]) {
-      acc[memberId] = [];
-    }
-    acc[memberId].push(appointment);
-    return acc;
-  }, {} as Record<string, any[]>);
+  // Toggle member selection
+  const toggleMember = (memberId: string) => {
+    setSelectedMembers(prev => 
+      prev.includes(memberId) 
+        ? prev.filter(id => id !== memberId)
+        : [...prev, memberId]
+    );
+  };
 
-  // Obtener nombre del miembro
-  const getMemberName = (memberId: string) => {
-    if (memberId === 'unassigned') return 'Sin asignar';
-    const member = members.find(m => m.id === memberId);
-    return member ? `${member.first_name} ${member.last_name}` : 'Miembro no encontrado';
+  // Select/deselect all members
+  const toggleAllMembers = () => {
+    setSelectedMembers(prev => 
+      prev.length === activeMembers.length ? [] : activeMembers.map(m => m.id)
+    );
   };
 
   if (isLoading) {
@@ -175,22 +183,36 @@ export default function Calendar() {
         {/* Member Filter */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Filtrar por Miembro</CardTitle>
+            <CardTitle className="text-sm font-medium">Filtrar por Miembros</CardTitle>
           </CardHeader>
-          <CardContent>
-            <Select value={selectedMember} onValueChange={setSelectedMember}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Filtrar por miembro" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los miembros</SelectItem>
-                {members.filter(m => m.is_active).map((member) => (
-                  <SelectItem key={member.id} value={member.id}>
+          <CardContent className="space-y-3">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="select-all"
+                checked={selectedMembers.length === activeMembers.length}
+                onCheckedChange={toggleAllMembers}
+              />
+              <label htmlFor="select-all" className="text-sm font-medium">
+                Seleccionar todos ({activeMembers.length})
+              </label>
+            </div>
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {activeMembers.map((member) => (
+                <div key={member.id} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={member.id}
+                    checked={selectedMembers.includes(member.id)}
+                    onCheckedChange={() => toggleMember(member.id)}
+                  />
+                  <label htmlFor={member.id} className="text-sm">
                     {member.first_name} {member.last_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                  </label>
+                </div>
+              ))}
+            </div>
+            <div className="text-xs text-gray-500 pt-2 border-t">
+              {selectedMembers.length} de {activeMembers.length} seleccionados
+            </div>
           </CardContent>
         </Card>
 
@@ -229,6 +251,8 @@ export default function Calendar() {
               appointments={filteredAppointments}
               members={members}
               selectedDate={selectedDate}
+              selectedMembers={selectedMembers}
+              showMemberFilter={false}
             />
           )
         ) : (
