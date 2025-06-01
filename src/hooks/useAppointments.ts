@@ -143,12 +143,13 @@ export function useCreateAppointment() {
 
       // Validar disponibilidad del miembro
       if (appointmentData.member_id) {
-        const appointmentDate = new Date(appointmentData.appointment_date);
+        // CORREGIR: Usar parse de date-fns para evitar problemas de timezone
+        const appointmentDate = parse(appointmentData.appointment_date, 'yyyy-MM-dd', new Date());
         const dayOfWeek = appointmentDate.getDay(); // 0 = domingo, 1 = lunes, etc.
         
-        console.log('=== DEBUGGING AVAILABILITY ===');
+        console.log('=== DEBUGGING AVAILABILITY (FIXED) ===');
         console.log('Appointment date string:', appointmentData.appointment_date);
-        console.log('Appointment date object:', appointmentDate);
+        console.log('Appointment date object (parsed):', appointmentDate);
         console.log('Day of week calculated:', dayOfWeek);
         console.log('Day names: 0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday');
         console.log('Current day name:', ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dayOfWeek]);
@@ -248,7 +249,7 @@ export function useCreateAppointment() {
       }
 
       // Validar disponibilidad de la organización
-      const appointmentDate = new Date(appointmentData.appointment_date);
+      const appointmentDate = parse(appointmentData.appointment_date, 'yyyy-MM-dd', new Date());
       const dayOfWeek = appointmentDate.getDay();
       
       const { data: orgAvailability, error: orgAvailabilityError } = await supabase
