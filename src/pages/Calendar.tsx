@@ -13,6 +13,7 @@ import { useAppointments } from '@/hooks/useAppointments';
 import { useMembers } from '@/hooks/useMembers';
 import { AppointmentCard } from '@/components/calendar/AppointmentCard';
 import { CreateAppointmentDialog } from '@/components/calendar/CreateAppointmentDialog';
+import { TimeAgendaView } from '@/components/calendar/TimeAgendaView';
 import { cn } from '@/lib/utils';
 
 export default function Calendar() {
@@ -45,20 +46,6 @@ export default function Calendar() {
     const member = members.find(m => m.id === memberId);
     return member ? `${member.first_name} ${member.last_name}` : 'Miembro no encontrado';
   };
-
-  // Generar horas del día (de 6 AM a 10 PM)
-  const generateTimeSlots = () => {
-    const slots = [];
-    for (let hour = 6; hour <= 22; hour++) {
-      slots.push(`${hour.toString().padStart(2, '0')}:00`);
-      if (hour < 22) {
-        slots.push(`${hour.toString().padStart(2, '0')}:30`);
-      }
-    }
-    return slots;
-  };
-
-  const timeSlots = generateTimeSlots();
 
   if (isLoading) {
     return (
@@ -180,47 +167,29 @@ export default function Calendar() {
 
       {/* Content */}
       {viewMode === 'agenda' ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {Object.keys(appointmentsByMember).length === 0 ? (
-            <div className="col-span-full">
-              <Card>
-                <CardContent className="p-12 text-center">
-                  <CalendarIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                    No hay citas programadas
-                  </h3>
-                  <p className="text-gray-600 mb-4">
-                    No hay citas para la fecha seleccionada
-                  </p>
-                  <Button onClick={() => setShowCreateDialog(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Crear Primera Cita
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-          ) : (
-            Object.entries(appointmentsByMember).map(([memberId, memberAppointments]) => (
-              <Card key={memberId}>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg">
-                    {getMemberName(memberId)}
-                  </CardTitle>
-                  <p className="text-sm text-gray-600">
-                    {memberAppointments.length} cita{memberAppointments.length !== 1 ? 's' : ''}
-                  </p>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {memberAppointments
-                    .sort((a, b) => a.start_time.localeCompare(b.start_time))
-                    .map((appointment) => (
-                      <AppointmentCard key={appointment.id} appointment={appointment} />
-                    ))}
-                </CardContent>
-              </Card>
-            ))
-          )}
-        </div>
+        filteredAppointments.length === 0 ? (
+          <Card>
+            <CardContent className="p-12 text-center">
+              <CalendarIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                No hay citas programadas
+              </h3>
+              <p className="text-gray-600 mb-4">
+                No hay citas para la fecha seleccionada
+              </p>
+              <Button onClick={() => setShowCreateDialog(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Crear Primera Cita
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <TimeAgendaView 
+            appointments={filteredAppointments}
+            members={members}
+            selectedDate={selectedDate}
+          />
+        )
       ) : (
         <Card>
           <CardContent className="p-0">
