@@ -1,13 +1,14 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Users, Phone, Mail, MapPin, Calendar, Eye } from 'lucide-react';
+import { Plus, Search, Users, Phone, Mail, MapPin, Calendar, Eye, Edit, Trash2 } from 'lucide-react';
 import { useContacts } from '@/hooks/useContacts';
 import { CreateContactDialog } from '@/components/contacts/CreateContactDialog';
 import { ContactDetailDialog } from '@/components/contacts/ContactDetailDialog';
+import { EditContactDialog } from '@/components/contacts/EditContactDialog';
+import { DeleteContactDialog } from '@/components/contacts/DeleteContactDialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { Contact } from '@/types/contact';
 
@@ -16,6 +17,8 @@ export default function Contacts() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [contactToEdit, setContactToEdit] = useState<Contact | null>(null);
+  const [contactToDelete, setContactToDelete] = useState<Contact | null>(null);
 
   const filteredContacts = contacts.filter(contact =>
     `${contact.first_name} ${contact.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -84,7 +87,7 @@ export default function Contacts() {
                 {searchTerm ? 'No se encontraron contactos' : 'No hay contactos aún'}
               </h3>
               <p className="text-gray-600 mb-4">
-                {searchTerm 
+                {searchTerm
                   ? 'Intenta con otros términos de búsqueda'
                   : 'Comienza agregando tu primer contacto'
                 }
@@ -167,14 +170,35 @@ export default function Contacts() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setSelectedContact(contact)}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSelectedContact(contact)}
+                          className="h-8 w-8 p-0"
+                          title="Ver detalles"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setContactToEdit(contact)}
+                          className="h-8 w-8 p-0"
+                          title="Editar contacto"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setContactToDelete(contact)}
+                          className="h-8 w-8 p-0"
+                          title="Eliminar contacto"
+                        >
+                          <Trash2 className="h-4 w-4 text-red-500" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -195,6 +219,22 @@ export default function Contacts() {
           contact={selectedContact}
           open={!!selectedContact}
           onOpenChange={(open) => !open && setSelectedContact(null)}
+        />
+      )}
+
+      {contactToEdit && (
+        <EditContactDialog
+          contact={contactToEdit}
+          open={!!contactToEdit}
+          onOpenChange={(open) => !open && setContactToEdit(null)}
+        />
+      )}
+
+      {contactToDelete && (
+        <DeleteContactDialog
+          contact={contactToDelete}
+          open={!!contactToDelete}
+          onOpenChange={(open) => !open && setContactToDelete(null)}
         />
       )}
     </div>

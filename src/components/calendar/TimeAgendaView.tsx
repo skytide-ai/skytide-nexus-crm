@@ -2,6 +2,7 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Users } from 'lucide-react';
 import { AppointmentWithDetails } from '@/hooks/useAppointments';
 import { MemberProfile } from '@/types/member';
@@ -166,15 +167,21 @@ export function TimeAgendaView({
     <div className="space-y-4">
       {/* Time Agenda */}
       <div className="border rounded-lg overflow-hidden bg-white">
-        {/* Header with member names */}
-        <div className="grid border-b bg-gray-50" style={{ gridTemplateColumns: `80px repeat(${visibleMembers.length}, 1fr)` }}>
-          <div className="p-3 border-r bg-gray-100">
+        {/* Member headers */}
+        <div className="grid border-b" style={{ gridTemplateColumns: `80px repeat(${visibleMembers.length}, 1fr)` }}>
+          <div className="p-2 border-r bg-gray-50">
             <span className="text-sm font-medium text-gray-600">Hora</span>
           </div>
           {visibleMembers.map((member) => (
-            <div key={member.id} className="p-3 border-r last:border-r-0 text-center">
-              <div className="font-medium text-sm">
-                {member.first_name} {member.last_name}
+            <div key={member.id} className="p-2 border-r last:border-r-0 text-center">
+              <div className="flex flex-col items-center gap-1">
+                <Avatar className="h-10 w-10">
+                  <AvatarImage src={member.avatar_url || undefined} />
+                  <AvatarFallback className="bg-gray-100 text-gray-800">
+                    {member.first_name[0]}{member.last_name[0]}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="font-medium truncate text-sm">{member.first_name} {member.last_name}</div>
               </div>
             </div>
           ))}

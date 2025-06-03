@@ -15,6 +15,7 @@ import { ContactNotes } from './ContactNotes';
 import { ContactFiles } from './ContactFiles';
 import { ContactAppointments } from './ContactAppointments';
 import { CreateAppointmentDialog } from './CreateAppointmentDialog';
+import { EditContactDialog } from './EditContactDialog';
 
 interface ContactDetailDialogProps {
   contact: Contact;
@@ -24,6 +25,7 @@ interface ContactDetailDialogProps {
 
 export function ContactDetailDialog({ contact, open, onOpenChange }: ContactDetailDialogProps) {
   const [showCreateAppointment, setShowCreateAppointment] = useState(false);
+  const [showEditContact, setShowEditContact] = useState(false);
   const { data: notes = [] } = useContactNotes(contact.id);
   const { data: files = [] } = useContactFiles(contact.id);
   const { data: appointments = [] } = useContactAppointments(contact.id);
@@ -47,14 +49,27 @@ export function ContactDetailDialog({ contact, open, onOpenChange }: ContactDeta
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-lg">
-                {contact.first_name[0]}{contact.last_name[0]}
+            <DialogTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-lg">
+                  {contact.first_name[0]}{contact.last_name[0]}
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold">{contact.first_name} {contact.last_name}</h2>
+                  <p className="text-sm text-gray-600">Cliente desde {formatDate(contact.created_at)}</p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-xl font-bold">{contact.first_name} {contact.last_name}</h2>
-                <p className="text-sm text-gray-600">Cliente desde {formatDate(contact.created_at)}</p>
-              </div>
+              <Button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowEditContact(true);
+                }} 
+                variant="outline" 
+                size="sm" 
+                className="flex items-center gap-2">
+                <Edit className="h-4 w-4" />
+                Editar
+              </Button>
             </DialogTitle>
           </DialogHeader>
 
@@ -178,6 +193,12 @@ export function ContactDetailDialog({ contact, open, onOpenChange }: ContactDeta
         contact={contact}
         open={showCreateAppointment}
         onOpenChange={setShowCreateAppointment}
+      />
+
+      <EditContactDialog
+        contact={contact}
+        open={showEditContact}
+        onOpenChange={setShowEditContact}
       />
     </>
   );

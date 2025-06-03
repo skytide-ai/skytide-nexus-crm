@@ -100,6 +100,12 @@ export default function Members() {
         searchTerm={searchTerm}
         onToggleActive={handleToggleActive}
         onDeleteMember={handleDeleteMember}
+        onUpdateMember={(memberId, updates) => {
+          updateMemberMutation.mutate({
+            memberId,
+            updates
+          });
+        }}
       />
     </div>
   );

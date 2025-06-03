@@ -1,4 +1,3 @@
-
 import {
   Calendar,
   CalendarCheck,
@@ -8,6 +7,7 @@ import {
   Wrench,
   Clock,
   UserCheck,
+  MessageSquare,
 } from "lucide-react"
 
 import {
@@ -70,6 +70,12 @@ const menuItems = [
     title: "Configuración",
     url: "/settings",
     icon: Settings,
+    roles: ["admin", "superadmin"],
+  },
+  {
+    title: "WhatsApp",
+    url: "/admin/whatsapp",
+    icon: MessageSquare,
     roles: ["admin", "superadmin"],
   },
 ]

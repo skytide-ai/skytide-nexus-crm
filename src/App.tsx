@@ -16,6 +16,7 @@ import AcceptInvitation from '@/pages/AcceptInvitation';
 import SetPassword from '@/pages/SetPassword';
 import NotFound from '@/pages/NotFound';
 import SystemAdmin from '@/pages/SystemAdmin';
+import AdminWhatsApp from '@/pages/AdminWhatsApp';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -34,6 +35,7 @@ function App() {
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/accept-invitation" element={<AcceptInvitation />} />
+            <Route path="/aceptar-invitacion" element={<AcceptInvitation />} />
             <Route path="/set-password" element={<SetPassword />} />
             <Route path="/system-admin" element={<SystemAdmin />} />
             <Route
@@ -48,6 +50,8 @@ function App() {
                       <Route path="/availability" element={<Availability />} />
                       <Route path="/contacts" element={<Contacts />} />
                       <Route path="/calendar" element={<Calendar />} />
+                      <Route path="/admin/whatsapp" element={<AdminWhatsApp />} />
+                      <Route path="/admin/whatsapp/:phoneNumber" element={<AdminWhatsApp />} />
                       <Route path="*" element={<NotFound />} />
                     </Routes>
                   </Layout>

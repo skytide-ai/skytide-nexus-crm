@@ -33,6 +33,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, firstName: string, lastName: string, organizationName?: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
+  updateProfile: (updates: Partial<Profile>) => Promise<{ error: any | null }>;
   isAdmin: boolean;
   isSuperAdmin: boolean;
 }
@@ -59,8 +60,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setProfileLoading(true);
       console.log('Fetching profile for user:', userId);
       
+      // Usamos any para evitar problemas de tipado con Supabase
       const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
+        .from('profiles' as any)
         .select('*')
         .eq('id', userId)
         .maybeSingle(); // Usar maybeSingle en lugar de single para evitar errores si no existe
@@ -83,12 +85,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       console.log('Profile data:', profileData);
-      setProfile(profileData);
+      // Usamos un tipo más específico para evitar errores de tipado
+      setProfile(profileData as Profile);
 
       // Fetch organization if user has one
       if (profileData.organization_id) {
+        // Usamos any para evitar problemas de tipado con Supabase
         const { data: orgData, error: orgError } = await supabase
-          .from('organizations')
+          .from('organizations' as any)
           .select('*')
           .eq('id', profileData.organization_id)
           .maybeSingle();
@@ -97,7 +101,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.error('Error fetching organization:', orgError);
         } else if (orgData) {
           console.log('Organization data:', orgData);
-          setOrganization(orgData);
+          // Usamos un tipo más específico para evitar errores de tipado
+          setOrganization(orgData as Organization);
         }
       }
     } catch (error) {
@@ -250,6 +255,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isAdmin = profile?.role === 'admin' || profile?.role === 'superadmin';
   const isSuperAdmin = profile?.role === 'superadmin';
 
+  // Función para actualizar el perfil del usuario en el contexto
+  const updateProfile = async (updates: Partial<Profile>) => {
+    if (!user) return { error: new Error('No hay usuario autenticado') };
+    
+    try {
+      // Actualizar el perfil en la base de datos
+      // Usamos any para evitar problemas de tipado con Supabase
+      const { error } = await supabase
+        .from('profiles' as any)
+        .update(updates)
+        .eq('id', user.id);
+      
+      if (error) {
+        console.error('Error al actualizar perfil:', error);
+        toast({
+          title: "Error",
+          description: "No se pudo actualizar el perfil",
+          variant: "destructive",
+        });
+        return { error };
+      }
+      
+      // Actualizar el perfil en el estado local
+      if (profile) {
+        // Usamos un tipo más específico para evitar errores de tipado
+        setProfile((prevProfile) => ({ ...prevProfile, ...updates }));
+      }
+      
+      // Recargar el perfil para asegurar que tenemos los datos más recientes
+      fetchUserProfile(user.id);
+      
+      return { error: null };
+    } catch (error) {
+      console.error('Error en updateProfile:', error);
+      return { error };
+    }
+  };
+
   const value = {
     user,
     profile,
@@ -259,6 +302,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signUp,
     signIn,
     signOut,
+    updateProfile,
     isAdmin,
     isSuperAdmin,
   };
