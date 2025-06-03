@@ -204,19 +204,63 @@ export function useCreateAppointment() {
         
         const isTimeValid = availability.some(slot => {
           console.log('Checking time slot:', slot);
-          const isWithinWorkingHours = startTime >= slot.start_time && endTime <= slot.end_time;
+          
+          // Normalizar las horas para comparación (asegurar que sean strings)
+          // Eliminar los segundos para asegurar comparaciones consistentes
+          const normalizedStartTime = String(startTime).trim().substring(0, 5); // Tomar solo HH:MM
+          const normalizedEndTime = String(endTime).trim().substring(0, 5); // Tomar solo HH:MM
+          const normalizedSlotStartTime = String(slot.start_time).trim().substring(0, 5); // Tomar solo HH:MM
+          const normalizedSlotEndTime = String(slot.end_time).trim().substring(0, 5); // Tomar solo HH:MM
+          
+          console.log('Normalized times for comparison:', {
+            normalizedStartTime,
+            normalizedEndTime,
+            normalizedSlotStartTime,
+            normalizedSlotEndTime
+          });
+          
+          // Verificar si la cita está dentro del horario de trabajo
+          // IMPORTANTE: Permitir que la cita comience exactamente a la hora de inicio de disponibilidad
+          // y termine exactamente a la hora de fin de disponibilidad
+          const isWithinWorkingHours = (
+            // La hora de inicio de la cita debe ser igual o posterior a la hora de inicio del slot
+            normalizedStartTime >= normalizedSlotStartTime && 
+            // La hora de fin de la cita debe ser igual o anterior a la hora de fin del slot
+            normalizedEndTime <= normalizedSlotEndTime
+          );
+          
           console.log('Is within working hours?', isWithinWorkingHours, {
-            appointmentStart: startTime,
-            appointmentEnd: endTime,
-            slotStart: slot.start_time,
-            slotEnd: slot.end_time
+            appointmentStart: normalizedStartTime,
+            appointmentEnd: normalizedEndTime,
+            slotStart: normalizedSlotStartTime,
+            slotEnd: normalizedSlotEndTime,
+            startTimeComparison: `${normalizedStartTime} >= ${normalizedSlotStartTime} = ${normalizedStartTime >= normalizedSlotStartTime}`,
+            endTimeComparison: `${normalizedEndTime} <= ${normalizedSlotEndTime} = ${normalizedEndTime <= normalizedSlotEndTime}`,
+            exactMatchStart: normalizedStartTime === normalizedSlotStartTime
           });
           
           // Si hay descanso, verificar que la cita no interfiera
           if (slot.break_start_time && slot.break_end_time) {
-            const doesNotConflictWithBreak = endTime <= slot.break_start_time || startTime >= slot.break_end_time;
-            console.log('Does not conflict with break?', doesNotConflictWithBreak);
-            return isWithinWorkingHours && doesNotConflictWithBreak;
+            const breakStartTime = String(slot.break_start_time).trim().substring(0, 5); // Tomar solo HH:MM
+            const breakEndTime = String(slot.break_end_time).trim().substring(0, 5); // Tomar solo HH:MM
+            
+            console.log('Break times:', { breakStartTime, breakEndTime });
+            
+            // Verificar si la cita está completamente dentro del descanso
+            const appointmentDuringBreak = 
+              (normalizedStartTime >= breakStartTime && normalizedStartTime < breakEndTime) || 
+              (normalizedEndTime > breakStartTime && normalizedEndTime <= breakEndTime) ||
+              (normalizedStartTime <= breakStartTime && normalizedEndTime >= breakEndTime);
+            
+            console.log('Break check:', {
+              appointmentDuringBreak,
+              breakStartTime,
+              breakEndTime,
+              normalizedStartTime,
+              normalizedEndTime
+            });
+            
+            return isWithinWorkingHours && !appointmentDuringBreak;
           }
           
           return isWithinWorkingHours;
@@ -241,7 +285,28 @@ export function useCreateAppointment() {
           
           // Si tiene horario especial, validar contra ese horario
           if (specialDate.start_time && specialDate.end_time) {
-            if (startTime < specialDate.start_time || endTime > specialDate.end_time) {
+            // Normalizar las horas para comparación (asegurar que sean strings)
+            const normalizedStartTime = String(appointmentData.start_time).trim().substring(0, 5); // Tomar solo HH:MM
+            const normalizedEndTime = String(appointmentData.end_time).trim().substring(0, 5); // Tomar solo HH:MM
+            const normalizedSpecialStartTime = String(specialDate.start_time).trim().substring(0, 5); // Tomar solo HH:MM
+            const normalizedSpecialEndTime = String(specialDate.end_time).trim().substring(0, 5); // Tomar solo HH:MM
+            
+            console.log('Special date normalized times:', {
+              normalizedStartTime,
+              normalizedEndTime,
+              normalizedSpecialStartTime,
+              normalizedSpecialEndTime
+            });
+            
+            console.log('Checking special date time constraints:', {
+              appointmentStart: normalizedStartTime,
+              appointmentEnd: normalizedEndTime,
+              specialStart: normalizedSpecialStartTime,
+              specialEnd: normalizedSpecialEndTime,
+              exactMatchStart: normalizedStartTime === normalizedSpecialStartTime
+            });
+            
+            if (normalizedStartTime < normalizedSpecialStartTime || normalizedEndTime > normalizedSpecialEndTime) {
               throw new Error('La hora seleccionada está fuera del horario especial del miembro para esta fecha.');
             }
           }
@@ -279,6 +344,64 @@ export function useCreateAppointment() {
       if (orgSpecialDate && !orgSpecialDate.is_available) {
         throw new Error('La organización no está disponible en esta fecha específica.');
       }
+      
+      // Si la organización tiene horario especial para esta fecha, validar contra ese horario
+      if (orgSpecialDate && orgSpecialDate.is_available && orgSpecialDate.start_time && orgSpecialDate.end_time) {
+        // Normalizar las horas para comparación
+        const normalizedStartTime = String(appointmentData.start_time).trim().substring(0, 5); // Tomar solo HH:MM
+        const normalizedEndTime = String(appointmentData.end_time).trim().substring(0, 5); // Tomar solo HH:MM
+        const normalizedSpecialStartTime = String(orgSpecialDate.start_time).trim().substring(0, 5); // Tomar solo HH:MM
+        const normalizedSpecialEndTime = String(orgSpecialDate.end_time).trim().substring(0, 5); // Tomar solo HH:MM
+        
+        console.log('Checking organization special date time constraints:', {
+          appointmentStart: normalizedStartTime,
+          appointmentEnd: normalizedEndTime,
+          specialStart: normalizedSpecialStartTime,
+          specialEnd: normalizedSpecialEndTime,
+          exactMatchStart: normalizedStartTime === normalizedSpecialStartTime
+        });
+        
+        if (normalizedStartTime < normalizedSpecialStartTime || normalizedEndTime > normalizedSpecialEndTime) {
+          throw new Error('La hora seleccionada está fuera del horario especial de la organización para esta fecha.');
+        }
+      }
+      
+      // Verificar que la hora esté dentro del horario disponible de la organización
+      const isOrgTimeValid = orgAvailability.some(slot => {
+        // Normalizar las horas para comparación
+        const normalizedStartTime = String(appointmentData.start_time).trim().substring(0, 5); // Tomar solo HH:MM
+        const normalizedEndTime = String(appointmentData.end_time).trim().substring(0, 5); // Tomar solo HH:MM
+        const normalizedSlotStartTime = String(slot.start_time).trim().substring(0, 5); // Tomar solo HH:MM
+        const normalizedSlotEndTime = String(slot.end_time).trim().substring(0, 5); // Tomar solo HH:MM
+        
+        // Verificar si la cita está dentro del horario de trabajo de la organización
+        const isWithinWorkingHours = normalizedStartTime >= normalizedSlotStartTime && normalizedEndTime <= normalizedSlotEndTime;
+        
+        console.log('Checking organization availability:', {
+          appointmentStart: normalizedStartTime,
+          appointmentEnd: normalizedEndTime,
+          slotStart: normalizedSlotStartTime,
+          slotEnd: normalizedSlotEndTime,
+          exactMatchStart: normalizedStartTime === normalizedSlotStartTime,
+          isWithinWorkingHours
+        });
+        
+        // Si hay descanso, verificar que la cita no interfiera
+        if (slot.break_start_time && slot.break_end_time) {
+          const normalizedBreakStart = String(slot.break_start_time).trim().substring(0, 5); // Tomar solo HH:MM
+          const normalizedBreakEnd = String(slot.break_end_time).trim().substring(0, 5); // Tomar solo HH:MM
+          
+          const doesNotConflictWithBreak = normalizedEndTime <= normalizedBreakStart || normalizedStartTime >= normalizedBreakEnd;
+          console.log('Organization break check:', { doesNotConflictWithBreak });
+          return isWithinWorkingHours && doesNotConflictWithBreak;
+        }
+        
+        return isWithinWorkingHours;
+      });
+      
+      if (!isOrgTimeValid) {
+        throw new Error('La hora seleccionada está fuera del horario disponible de la organización.');
+      }
 
       // Verificar conflictos con otras citas del mismo miembro
       if (appointmentData.member_id) {
@@ -293,8 +416,25 @@ export function useCreateAppointment() {
           throw new Error('Error al verificar conflictos de horario.');
         }
 
+        // Normalizar las horas para comparación
+        const normalizedNewStartTime = String(appointmentData.start_time).trim().substring(0, 5); // Tomar solo HH:MM
+        const normalizedNewEndTime = String(appointmentData.end_time).trim().substring(0, 5); // Tomar solo HH:MM
+        
         const hasConflict = existingAppointments?.some(apt => {
-          return !(appointmentData.end_time <= apt.start_time || appointmentData.start_time >= apt.end_time);
+          // Normalizar las horas de la cita existente
+          const normalizedExistingStartTime = String(apt.start_time).trim().substring(0, 5); // Tomar solo HH:MM
+          const normalizedExistingEndTime = String(apt.end_time).trim().substring(0, 5); // Tomar solo HH:MM
+          
+          console.log('Verificando conflicto de citas:', {
+            nuevaCitaInicio: normalizedNewStartTime,
+            nuevaCitaFin: normalizedNewEndTime,
+            citaExistenteInicio: normalizedExistingStartTime,
+            citaExistenteFin: normalizedExistingEndTime
+          });
+          
+          // Permitir citas "espalda con espalda": una cita puede comenzar exactamente cuando termina otra
+          // o terminar exactamente cuando comienza otra
+          return normalizedNewStartTime < normalizedExistingEndTime && normalizedNewEndTime > normalizedExistingStartTime;
         });
 
         if (hasConflict) {
