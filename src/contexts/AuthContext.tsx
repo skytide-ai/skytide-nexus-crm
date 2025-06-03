@@ -85,24 +85,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       console.log('Profile data:', profileData);
-      // Usamos un tipo más específico para evitar errores de tipado
-      setProfile(profileData as Profile);
+      
+      // Verificar que profileData tiene la estructura esperada antes de asignarlo
+      if (typeof profileData === 'object' && profileData !== null) {
+        // Convertir a unknown primero y luego a Profile para evitar errores de tipado
+        setProfile(profileData as unknown as Profile);
+        
+        // Verificar que organization_id existe y no es null antes de usarlo
+        const orgId = (profileData as any).organization_id;
+        if (orgId) {
+          // Usamos any para evitar problemas de tipado con Supabase
+          const { data: orgData, error: orgError } = await supabase
+            .from('organizations' as any)
+            .select('*')
+            .eq('id', orgId)
+            .maybeSingle();
 
-      // Fetch organization if user has one
-      if (profileData.organization_id) {
-        // Usamos any para evitar problemas de tipado con Supabase
-        const { data: orgData, error: orgError } = await supabase
-          .from('organizations' as any)
-          .select('*')
-          .eq('id', profileData.organization_id)
-          .maybeSingle();
-
-        if (orgError) {
-          console.error('Error fetching organization:', orgError);
-        } else if (orgData) {
-          console.log('Organization data:', orgData);
-          // Usamos un tipo más específico para evitar errores de tipado
-          setOrganization(orgData as Organization);
+          if (orgError) {
+            console.error('Error fetching organization:', orgError);
+          } else if (orgData) {
+            console.log('Organization data:', orgData);
+            // Convertir a unknown primero y luego a Organization para evitar errores de tipado
+            setOrganization(orgData as unknown as Organization);
+          }
         }
       }
     } catch (error) {

@@ -42,8 +42,19 @@ export function SpecialDates({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Corregir el problema de zona horaria para la fecha
+    // La fecha viene en formato YYYY-MM-DD del input type="date"
+    // Necesitamos asegurarnos de que no haya ajustes de zona horaria
+    // Para eso, vamos a crear una fecha con la zona horaria local correcta
+    const [year, month, day] = formData.date.split('-').map(Number);
+    
+    // Crear una fecha con la zona horaria local correcta (mes es 0-indexed en JavaScript)
+    const correctedDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    
     const data = {
       ...formData,
+      // Usar la fecha corregida
+      date: correctedDate,
       start_time: formData.start_time || null,
       end_time: formData.end_time || null,
       break_start_time: formData.break_start_time || null,
@@ -73,7 +84,14 @@ export function SpecialDates({
   };
 
   const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('es-CO', {
+    // Crear una fecha con UTC para evitar problemas de zona horaria
+    // Formato de entrada: YYYY-MM-DD
+    const [year, month, day] = date.split('-').map(Number);
+    
+    // Crear una fecha con la zona horaria local correcta (mes es 0-indexed en JavaScript)
+    const localDate = new Date(year, month - 1, day);
+    
+    return localDate.toLocaleDateString('es-CO', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',

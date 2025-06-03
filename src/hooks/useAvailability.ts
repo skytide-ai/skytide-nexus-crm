@@ -269,14 +269,27 @@ export function useCreateMemberSpecialDate() {
   return useMutation({
     mutationFn: async (data: Omit<MemberSpecialDate, 'id' | 'created_at' | 'updated_at' | 'created_by' | 'organization_id'>) => {
       if (!profile?.id || !profile?.organization_id) throw new Error('User profile not found');
+      
+      // Asegurar que la fecha se maneje correctamente
+      // La fecha viene en formato YYYY-MM-DD
+      // Necesitamos asegurarnos de que Supabase la interprete correctamente
+      const dateStr = data.date;
+      
+      // Crear un objeto con los datos formateados correctamente
+      const formattedData = {
+        ...data,
+        // Usar la fecha en formato ISO para evitar problemas de zona horaria
+        // Agregamos T00:00:00 para asegurar que se interprete como medianoche en la zona horaria local
+        date: `${dateStr}T00:00:00`,
+        created_by: profile.id,
+        organization_id: profile.organization_id,
+      };
+      
+      console.log('Sending special date to server:', formattedData);
 
       const { data: result, error } = await supabase
         .from('member_special_dates')
-        .insert({
-          ...data,
-          created_by: profile.id,
-          organization_id: profile.organization_id,
-        })
+        .insert(formattedData)
         .select()
         .single();
 
@@ -410,13 +423,26 @@ export function useCreateOrganizationSpecialDate() {
     mutationFn: async (data: Omit<OrganizationSpecialDate, 'id' | 'created_at' | 'updated_at' | 'created_by' | 'organization_id'>) => {
       if (!profile?.id || !profile?.organization_id) throw new Error('User profile not found');
 
+      // Asegurar que la fecha se maneje correctamente
+      // La fecha viene en formato YYYY-MM-DD
+      // Necesitamos asegurarnos de que Supabase la interprete correctamente
+      const dateStr = data.date;
+      
+      // Crear un objeto con los datos formateados correctamente
+      const formattedData = {
+        ...data,
+        // Usar la fecha en formato ISO para evitar problemas de zona horaria
+        // Agregamos T00:00:00 para asegurar que se interprete como medianoche en la zona horaria local
+        date: `${dateStr}T00:00:00`,
+        created_by: profile.id,
+        organization_id: profile.organization_id,
+      };
+      
+      console.log('Sending organization special date to server:', formattedData);
+
       const { data: result, error } = await supabase
         .from('organization_special_dates')
-        .insert({
-          ...data,
-          created_by: profile.id,
-          organization_id: profile.organization_id,
-        })
+        .insert(formattedData)
         .select()
         .single();
 
