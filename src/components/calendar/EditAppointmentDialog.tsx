@@ -1,0 +1,298 @@
+import React, { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { useMembers } from '@/hooks/useMembers';
+import { useServices } from '@/hooks/useServices';
+import { useContacts } from '@/hooks/useContacts';
+import { useUpdateAppointment, useDeleteAppointment, AppointmentWithDetails } from '@/hooks/useAppointments';
+import { format } from 'date-fns';
+
+interface EditAppointmentDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  appointment: AppointmentWithDetails | null;
+}
+
+export function EditAppointmentDialog({ open, onOpenChange, appointment }: EditAppointmentDialogProps) {
+  const [formData, setFormData] = useState<Partial<AppointmentWithDetails>>({});
+
+  const { members } = useMembers();
+  const { data: services = [] } = useServices();
+  const { data: contacts = [] } = useContacts();
+  const updateAppointment = useUpdateAppointment();
+  const deleteAppointment = useDeleteAppointment();
+  const [showDeleteAlert, setShowDeleteAlert] = useState(false);
+
+  // Inicializar el formulario cuando se abre el diálogo con los datos de la cita
+  useEffect(() => {
+    if (appointment && open) {
+      setFormData({
+        contact_id: appointment.contact_id,
+        member_id: appointment.member_id,
+        service_id: appointment.service_id,
+        appointment_date: appointment.appointment_date,
+        start_time: appointment.start_time,
+        end_time: appointment.end_time,
+        notes: appointment.notes,
+        status: appointment.status
+      });
+    }
+  }, [appointment, open]);
+
+  // Filtrar servicios por miembro seleccionado
+  const getAvailableServices = () => {
+    if (!formData.member_id) {
+      return services.filter(s => s.is_active);
+    }
+    
+    return services.filter(s => 
+      s.is_active && 
+      s.assigned_members?.some(member => member.id === formData.member_id)
+    );
+  };
+
+  // Calcular hora de fin automáticamente cuando cambia el servicio o la hora de inicio
+  useEffect(() => {
+    if (formData.service_id && formData.start_time) {
+      const service = services.find(s => s.id === formData.service_id);
+      if (service) {
+        const startTime = new Date(`2000-01-01T${formData.start_time}:00`);
+        const endTime = new Date(startTime.getTime() + service.duration_minutes * 60000);
+        const endTimeString = endTime.toTimeString().slice(0, 5);
+        
+        setFormData(prev => ({
+          ...prev,
+          end_time: endTimeString
+        }));
+      }
+    }
+  }, [formData.service_id, formData.start_time, services]);
+
+  // Limpiar servicio seleccionado cuando cambia el miembro
+  useEffect(() => {
+    if (formData.member_id) {
+      const availableServices = getAvailableServices();
+      if (formData.service_id && !availableServices.find(s => s.id === formData.service_id)) {
+        setFormData(prev => ({ ...prev, service_id: undefined }));
+      }
+    }
+  }, [formData.member_id]);
+
+  const handleDelete = async () => {
+    if (!appointment) return;
+
+    try {
+      await deleteAppointment.mutateAsync(appointment.id);
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Error deleting appointment:', error);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!appointment || !formData.contact_id || !formData.start_time || !formData.end_time) {
+      return;
+    }
+
+    try {
+      await updateAppointment.mutateAsync({
+        id: appointment.id,
+        data: formData
+      });
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Error updating appointment:', error);
+    }
+  };
+
+  const availableServices = getAvailableServices();
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Editar Cita</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label htmlFor="appointment_date">Fecha</Label>
+            <Input
+              id="appointment_date"
+              type="date"
+              value={formData.appointment_date}
+              onChange={(e) => setFormData(prev => ({ ...prev, appointment_date: e.target.value }))}
+              required
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="member_id">Profesional</Label>
+            <Select
+              value={formData.member_id}
+              onValueChange={(value) => setFormData(prev => ({ ...prev, member_id: value }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Seleccionar profesional" />
+              </SelectTrigger>
+              <SelectContent>
+                {members
+                  .filter(m => m.is_active)
+                  .map((member) => (
+                    <SelectItem key={member.id} value={member.id}>
+                      {member.first_name} {member.last_name}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="service_id">Servicio</Label>
+            <Select
+              value={formData.service_id}
+              onValueChange={(value) => setFormData(prev => ({ ...prev, service_id: value }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Seleccionar servicio" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableServices.map((service) => (
+                  <SelectItem key={service.id} value={service.id}>
+                    {service.name} ({service.duration_minutes} min)
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {formData.member_id && availableServices.length === 0 && (
+              <p className="text-sm text-gray-500 mt-1">
+                Este miembro no tiene servicios asignados
+              </p>
+            )}
+          </div>
+
+          <div>
+            <Label htmlFor="start_time">Hora inicio</Label>
+            <Input
+              id="start_time"
+              type="time"
+              value={formData.start_time}
+              onChange={(e) => setFormData(prev => ({ ...prev, start_time: e.target.value }))}
+              required
+            />
+            {formData.service_id && formData.end_time && (
+              <p className="text-sm text-gray-500 mt-1">
+                Fin estimado: {formData.end_time}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <Label>Contacto</Label>
+            <Select
+              value={formData.contact_id}
+              onValueChange={(value) => setFormData(prev => ({ ...prev, contact_id: value }))}
+              required
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Seleccionar contacto" />
+              </SelectTrigger>
+              <SelectContent>
+                {contacts.map((contact) => (
+                  <SelectItem key={contact.id} value={contact.id}>
+                    {contact.first_name} {contact.last_name} - {contact.phone}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="status">Estado</Label>
+            <Select
+              value={formData.status}
+              onValueChange={(value: any) => setFormData(prev => ({ ...prev, status: value }))}
+              required
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Seleccionar estado" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="programada">Programada</SelectItem>
+                <SelectItem value="confirmada">Confirmada</SelectItem>
+                <SelectItem value="en_curso">En curso</SelectItem>
+                <SelectItem value="completada">Completada</SelectItem>
+                <SelectItem value="cancelada">Cancelada</SelectItem>
+                <SelectItem value="no_asistida">No asistió</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="notes">Notas (opcional)</Label>
+            <Textarea
+              id="notes"
+              value={formData.notes || ''}
+              onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+              placeholder="Información adicional..."
+            />
+          </div>
+
+          <div className="flex justify-between pt-4">
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => setShowDeleteAlert(true)}
+              disabled={deleteAppointment.isPending}
+            >
+              {deleteAppointment.isPending ? 'Eliminando...' : 'Eliminar cita'}
+            </Button>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={updateAppointment.isPending}>
+                {updateAppointment.isPending ? 'Guardando...' : 'Guardar Cambios'}
+              </Button>
+            </div>
+          </div>
+        </form>
+      </DialogContent>
+
+      <AlertDialog open={showDeleteAlert} onOpenChange={setShowDeleteAlert}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. La cita será eliminada permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </Dialog>
+  );
+}

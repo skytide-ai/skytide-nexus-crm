@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -9,6 +8,7 @@ import { MemberProfile } from '@/types/member';
 import { cn } from '@/lib/utils';
 import { format, isSameDay } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz';
+import { EditAppointmentDialog } from './EditAppointmentDialog';
 
 interface TimeAgendaViewProps {
   appointments: AppointmentWithDetails[];
@@ -16,6 +16,11 @@ interface TimeAgendaViewProps {
   selectedDate: Date;
   selectedMembers: string[];
   showMemberFilter?: boolean;
+}
+
+interface EditDialogState {
+  isOpen: boolean;
+  appointment: AppointmentWithDetails | null;
 }
 
 const statusConfig = {
@@ -36,6 +41,19 @@ export function TimeAgendaView({
   selectedMembers,
   showMemberFilter = true 
 }: TimeAgendaViewProps) {
+  const [editDialog, setEditDialog] = useState<EditDialogState>({
+    isOpen: false,
+    appointment: null
+  });
+
+  const handleAppointmentClick = (appointment: AppointmentWithDetails) => {
+    console.log('Clicked appointment:', appointment);
+    setEditDialog({
+      isOpen: true,
+      appointment
+    });
+  };
+
   const activeMembers = members.filter(m => m.is_active);
   const visibleMembers = activeMembers.filter(m => selectedMembers.includes(m.id));
 
@@ -230,6 +248,10 @@ export function TimeAgendaView({
                           <div
                             key={appointment.id}
                             style={style}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleAppointmentClick(appointment);
+                            }}
                             className={cn(
                               "rounded border-l-4 p-2 text-xs shadow-sm cursor-pointer hover:shadow-md transition-shadow",
                               status.color
@@ -264,6 +286,13 @@ export function TimeAgendaView({
           })}
         </div>
       </div>
+
+      {/* Diálogo de edición */}
+      <EditAppointmentDialog
+        open={editDialog.isOpen}
+        onOpenChange={(open) => setEditDialog({ isOpen: open, appointment: open ? editDialog.appointment : null })}
+        appointment={editDialog.appointment}
+      />
     </div>
   );
 }
