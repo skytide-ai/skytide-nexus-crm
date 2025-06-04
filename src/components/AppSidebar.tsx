@@ -1,6 +1,5 @@
 import {
   Calendar,
-  CalendarCheck,
   Home,
   Settings,
   Users,
@@ -60,12 +59,7 @@ const menuItems = [
     icon: Calendar,
     roles: ["admin", "member", "superadmin"],
   },
-  {
-    title: "Citas",
-    url: "/appointments",
-    icon: CalendarCheck,
-    roles: ["admin", "member", "superadmin"],
-  },
+  // La sección de Citas ha sido eliminada
   {
     title: "Configuración",
     url: "/settings",

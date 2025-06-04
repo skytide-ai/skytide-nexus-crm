@@ -167,6 +167,20 @@ export function useCreateMemberAvailability() {
     mutationFn: async (data: Omit<MemberAvailability, 'id' | 'created_at' | 'updated_at' | 'created_by' | 'organization_id'>) => {
       if (!profile?.id || !profile?.organization_id) throw new Error('User profile not found');
 
+      // Verificar si ya existe un horario para este día
+      const { data: existingSlots, error: fetchError } = await supabase
+        .from('member_availability')
+        .select('*')
+        .eq('member_id', data.member_id)
+        .eq('day_of_week', data.day_of_week);
+
+      if (fetchError) throw fetchError;
+
+      // Si ya existe un horario para este día, lanzar error
+      if (existingSlots && existingSlots.length > 0) {
+        throw new Error(`Ya existe un horario definido para este día. Por favor, edite o elimine el horario existente.`);
+      }
+
       const { data: result, error } = await supabase
         .from('member_availability')
         .insert({
@@ -352,6 +366,20 @@ export function useCreateOrganizationAvailability() {
   return useMutation({
     mutationFn: async (data: Omit<OrganizationAvailability, 'id' | 'created_at' | 'updated_at' | 'created_by' | 'organization_id'>) => {
       if (!profile?.id || !profile?.organization_id) throw new Error('User profile not found');
+
+      // Verificar si ya existe un horario para este día
+      const { data: existingSlots, error: fetchError } = await supabase
+        .from('organization_availability')
+        .select('*')
+        .eq('organization_id', profile.organization_id)
+        .eq('day_of_week', data.day_of_week);
+
+      if (fetchError) throw fetchError;
+
+      // Si ya existe un horario para este día, lanzar error
+      if (existingSlots && existingSlots.length > 0) {
+        throw new Error(`Ya existe un horario definido para este día. Por favor, edite o elimine el horario existente.`);
+      }
 
       const { data: result, error } = await supabase
         .from('organization_availability')

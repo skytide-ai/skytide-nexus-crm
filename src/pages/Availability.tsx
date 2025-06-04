@@ -167,61 +167,47 @@ export function Availability() {
         </TabsList>
 
         <TabsContent value="member" className="space-y-6">
-          {/* Member Selection for Admins */}
-          {isAdmin && members && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Seleccionar Miembro</CardTitle>
-                <CardDescription>
-                  Elige el miembro para ver o editar su disponibilidad
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-2">
-                  {members.map((member) => (
-                    <button
-                      key={member.id}
-                      onClick={() => setSelectedMemberId(member.id)}
-                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                        selectedMemberId === member.id 
-                          ? 'bg-primary text-white' 
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                    >
+          {/* Member Selection with Dropdown and Info */}
+          {isAdmin && (
+            <div className="flex flex-col md:flex-row gap-4 mb-4">
+              <div className="w-full md:w-1/3">
+                <label htmlFor="member-select" className="block text-sm font-medium mb-2">Seleccionar Miembro</label>
+                <select
+                  id="member-select"
+                  className="w-full rounded-md border border-gray-300 py-2 px-3 text-sm"
+                  value={selectedMemberId}
+                  onChange={(e) => setSelectedMemberId(e.target.value)}
+                >
+                  {members?.map((member) => (
+                    <option key={member.id} value={member.id}>
                       {member.first_name} {member.last_name}
-                      {!member.is_active && <Badge variant="secondary" className="ml-2">Inactivo</Badge>}
-                    </button>
+                    </option>
                   ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Current Member Info */}
-          {selectedMember && (
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
-                    <span className="text-lg font-semibold text-gray-700">
+                </select>
+              </div>
+              
+              {/* Current Member Info - Inline */}
+              {selectedMember && (
+                <div className="flex-1 flex items-center gap-3 p-2 bg-gray-50 rounded-md border border-gray-100">
+                  <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
+                    <span className="text-sm font-semibold text-gray-700">
                       {selectedMember.first_name[0]}{selectedMember.last_name[0]}
                     </span>
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900">
-                      {selectedMember.first_name} {selectedMember.last_name}
-                    </h3>
-                    <p className="text-sm text-gray-600">{selectedMember.email}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Badge variant={selectedMember.is_active ? 'default' : 'secondary'}>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-medium text-gray-900">
+                        {selectedMember.first_name} {selectedMember.last_name}
+                      </h3>
+                      <Badge variant={selectedMember.is_active ? 'default' : 'secondary'} className="text-xs">
                         {selectedMember.is_active ? 'Activo' : 'Inactivo'}
                       </Badge>
-                      <Badge variant="outline">{selectedMember.role}</Badge>
                     </div>
+                    <p className="text-xs text-gray-600">{selectedMember.email}</p>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+              )}
+            </div>
           )}
 
           {/* Member Availability - Changed to grid layout */}

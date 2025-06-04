@@ -4,7 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { format, isAfter, isSameDay, parse } from 'date-fns';
+import { format, isAfter, isSameDay, parse, startOfWeek, endOfWeek } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 export interface AppointmentWithDetails {
   id: string;
@@ -15,7 +16,7 @@ export interface AppointmentWithDetails {
   appointment_date: string;
   start_time: string;
   end_time: string;
-  status: 'programada' | 'confirmada' | 'cancelada' | 'no_asistida' | 'en_curso' | 'completada';
+  status: 'programada' | 'confirmada' | 'cancelada' | 'no_asistio' | 'en_curso' | 'completada';
   notes?: string;
   created_at: string;
   updated_at: string;
@@ -43,14 +44,19 @@ export interface CreateAppointmentData {
   start_time: string;
   end_time: string;
   notes?: string;
-  status?: 'programada' | 'confirmada' | 'cancelada' | 'no_asistida' | 'en_curso' | 'completada';
+  status?: 'programada' | 'confirmada' | 'cancelada' | 'no_asistio' | 'en_curso' | 'completada';
 }
 
-export function useAppointments(date?: Date) {
+export interface UseAppointmentsOptions {
+  date?: Date;
+  viewMode?: 'agenda' | 'list' | 'week';
+}
+
+export function useAppointments({ date, viewMode = 'agenda' }: UseAppointmentsOptions = {}) {
   const { profile } = useAuth();
 
   return useQuery({
-    queryKey: ['appointments', profile?.organization_id, date ? format(date, 'yyyy-MM-dd') : null],
+    queryKey: ['appointments', profile?.organization_id, date ? format(date, 'yyyy-MM-dd') : null, viewMode],
     queryFn: async () => {
       if (!profile?.organization_id) {
         throw new Error('No organization found');
@@ -76,9 +82,18 @@ export function useAppointments(date?: Date) {
         `)
         .eq('organization_id', profile.organization_id);
 
-      // Si se proporciona una fecha, filtrar por esa fecha
+      // Si se proporciona una fecha, filtrar según el modo de vista
       if (date) {
-        query = query.eq('appointment_date', format(date, 'yyyy-MM-dd'));
+        if (viewMode === 'week') {
+          // En vista semanal, obtener las citas de toda la semana
+          const weekStart = startOfWeek(date, { locale: es });
+          const weekEnd = endOfWeek(date, { locale: es });
+          query = query.gte('appointment_date', format(weekStart, 'yyyy-MM-dd'))
+                       .lte('appointment_date', format(weekEnd, 'yyyy-MM-dd'));
+        } else {
+          // En otras vistas, solo obtener las citas del día seleccionado
+          query = query.eq('appointment_date', format(date, 'yyyy-MM-dd'));
+        }
       }
 
       const { data, error } = await query.order('start_time', { ascending: true });
@@ -481,9 +496,80 @@ export function useCreateAppointment() {
 export function useUpdateAppointment() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { profile } = useAuth();
 
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<CreateAppointmentData> }) => {
+      if (!profile?.organization_id) {
+        throw new Error('Missing user profile data');
+      }
+
+      // Si solo se está actualizando el estado, hacer update directo sin validaciones
+      if (Object.keys(data).length === 1 && 'status' in data) {
+        const { data: appointment, error } = await supabase
+          .from('appointments')
+          .update({ status: data.status, updated_at: new Date().toISOString() })
+          .eq('id', id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        return appointment;
+      }
+
+      // Para otros cambios, obtener la cita actual y validar
+      const { data: currentAppointment } = await supabase
+        .from('appointments')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (!currentAppointment) {
+        throw new Error('Cita no encontrada');
+      }
+
+      // Validar fecha futura solo si se está cambiando fecha u hora
+      if (data.appointment_date || data.start_time) {
+        const appointmentDateTime = new Date(
+          `${data.appointment_date || currentAppointment.appointment_date}T${data.start_time || currentAppointment.start_time}`
+        );
+        const now = new Date();
+        
+        if (!isAfter(appointmentDateTime, now)) {
+          throw new Error('No se puede reagendar una cita para una fecha y hora pasada.');
+        }
+      }
+
+      // Verificar conflictos solo si hay cambios en horario o miembro
+      if (data.start_time || data.end_time || data.member_id || data.appointment_date) {
+        const memberId = data.member_id || currentAppointment.member_id;
+        if (memberId) {
+          const { data: existingAppointments } = await supabase
+            .from('appointments')
+            .select('*')
+            .eq('member_id', memberId)
+            .eq('appointment_date', data.appointment_date || currentAppointment.appointment_date)
+            .neq('id', id);
+
+          const startTime = data.start_time || currentAppointment.start_time;
+          const endTime = data.end_time || currentAppointment.end_time;
+          const normalizedNewStartTime = String(startTime).trim().substring(0, 5);
+          const normalizedNewEndTime = String(endTime).trim().substring(0, 5);
+
+          const hasConflict = existingAppointments?.some(apt => {
+            const normalizedExistingStartTime = String(apt.start_time).trim().substring(0, 5);
+            const normalizedExistingEndTime = String(apt.end_time).trim().substring(0, 5);
+            return normalizedNewStartTime < normalizedExistingEndTime && 
+                   normalizedNewEndTime > normalizedExistingStartTime;
+          });
+
+          if (hasConflict) {
+            throw new Error('Ya existe una cita en este horario para el miembro seleccionado.');
+          }
+        }
+      }
+
+      // Realizar la actualización
       const { data: appointment, error } = await supabase
         .from('appointments')
         .update({ ...data, updated_at: new Date().toISOString() })
