@@ -66,22 +66,7 @@ export default function Members() {
         />
       </div>
 
-      {/* Información sobre el nuevo sistema */}
-      <Card className="bg-blue-50 border-blue-200">
-        <CardContent className="p-4">
-          <div className="flex items-center gap-3">
-            <Mail className="h-5 w-5 text-blue-600" />
-            <div>
-              <p className="text-sm font-medium text-blue-900">
-                Sistema de invitaciones mejorado
-              </p>
-              <p className="text-xs text-blue-700">
-                Los nuevos miembros recibirán un email con un enlace seguro para crear su cuenta y elegir su contraseña
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* El elemento informativo sobre el sistema de invitaciones ha sido eliminado */}
 
       {/* Invitaciones pendientes */}
       <PendingInvitationsTable

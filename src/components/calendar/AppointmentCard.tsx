@@ -7,19 +7,20 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { AppointmentWithDetails } from '@/hooks/useAppointments';
 import { useUpdateAppointment, useDeleteAppointment } from '@/hooks/useAppointments';
 import { EditAppointmentDialog } from './EditAppointmentDialog';
+import { cn } from '@/lib/utils';
 
 interface AppointmentCardProps {
   appointment: AppointmentWithDetails;
-  variant?: 'card' | 'list';
+  variant?: 'card' | 'list' | 'week';
 }
 
 const statusConfig = {
-  programada: { label: 'Programada', color: 'bg-blue-100 text-blue-800' },
+  programada: { label: 'Programada', color: 'bg-gray-100 text-gray-800' },
   confirmada: { label: 'Confirmada', color: 'bg-green-100 text-green-800' },
   cancelada: { label: 'Cancelada', color: 'bg-red-100 text-red-800' },
-  no_asistida: { label: 'No asistió', color: 'bg-orange-100 text-orange-800' },
+  no_asistio: { label: 'No asistió', color: 'bg-orange-100 text-orange-800' },
   en_curso: { label: 'En curso', color: 'bg-purple-100 text-purple-800' },
-  completada: { label: 'Completada', color: 'bg-gray-100 text-gray-800' },
+  completada: { label: 'Completada', color: 'bg-blue-100 text-blue-800' },
 };
 
 export function AppointmentCard({ appointment, variant = 'card' }: AppointmentCardProps) {
@@ -43,7 +44,21 @@ export function AppointmentCard({ appointment, variant = 'card' }: AppointmentCa
 
   return (
     <>
-      {variant === 'list' ? (
+      {variant === 'week' ? (
+        <div className="text-sm hover:bg-muted/50 rounded-lg p-2 -mx-2 cursor-pointer transition-colors">
+          <div className="font-medium">
+            {appointment.start_time}
+          </div>
+          <div className="text-muted-foreground truncate">
+            {appointment.contacts.first_name} {appointment.contacts.last_name}
+          </div>
+          <Badge className={cn("text-[10px] shrink-0",
+        appointment.status === 'programada' ? 'bg-gray-400 text-white' :
+        appointment.status === 'no_asistio' ? 'bg-orange-400 text-white' :
+        status.color
+      )}>{status.label}</Badge>
+        </div>
+      ) : variant === 'list' ? (
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="text-sm font-medium text-gray-900">

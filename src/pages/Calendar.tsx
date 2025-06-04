@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar as CalendarIcon, Plus, List, Grid, ChevronLeft, ChevronRight } from 'lucide-react';
-import { format, addDays, subDays } from 'date-fns';
+import { format, addDays, subDays, startOfWeek, endOfWeek } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -15,14 +15,15 @@ import { AppointmentCard } from '@/components/calendar/AppointmentCard';
 import { CreateAppointmentDialog } from '@/components/calendar/CreateAppointmentDialog';
 import { TimeAgendaView } from '@/components/calendar/TimeAgendaView';
 import { cn } from '@/lib/utils';
+import { WeekAgendaView } from '@/components/calendar/WeekAgendaView';
 
 export default function Calendar() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [viewMode, setViewMode] = useState<'agenda' | 'list'>('agenda');
+  const [viewMode, setViewMode] = useState<'agenda' | 'list' | 'week'>('agenda');
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
 
-  const { data: appointments = [], isLoading } = useAppointments(selectedDate);
+  const { data: appointments = [], isLoading } = useAppointments({ date: selectedDate, viewMode });
   const { members } = useMembers();
 
   const activeMembers = members.filter(m => m.is_active);
@@ -71,15 +72,42 @@ export default function Calendar() {
       {/* Header - Full Width */}
       <div>
         <div className="flex items-center gap-3 mb-2">
-          <h1 className="text-3xl font-bold text-gray-900">Calendario</h1>
-          <Badge variant="secondary" className="flex items-center gap-1 px-3 py-1">
-            <CalendarIcon className="h-4 w-4" />
-            <span className="font-semibold">{filteredAppointments.length}</span>
-          </Badge>
+          <div className="flex-1">
+            <h1 className="text-3xl font-bold text-gray-900">Calendario</h1>
+            <p className="text-gray-600">
+              Gestiona las citas y agenda
+            </p>
+          </div>
+          <div className="flex items-center gap-4">
+            <Badge variant="secondary" className="flex items-center gap-1 px-3 py-1">
+              <CalendarIcon className="h-4 w-4" />
+              <span className="font-semibold">{filteredAppointments.length}</span>
+            </Badge>
+            <div className="border rounded-lg p-1 flex gap-1">
+              <Button
+                variant={viewMode === 'agenda' ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('agenda')}
+              >
+                Día
+              </Button>
+              <Button
+                variant={viewMode === 'week' ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('week')}
+              >
+                Semana
+              </Button>
+              <Button
+                variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('list')}
+              >
+                Lista
+              </Button>
+            </div>
+          </div>
         </div>
-        <p className="text-gray-600">
-          Gestiona las citas y agenda del día
-        </p>
       </div>
 
       {/* Main Content with Sidebar */}
@@ -97,7 +125,7 @@ export default function Calendar() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setSelectedDate(subDays(selectedDate, 1))}
+                  onClick={() => setSelectedDate(subDays(selectedDate, viewMode === 'week' ? 7 : 1))}
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
@@ -113,7 +141,7 @@ export default function Calendar() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setSelectedDate(addDays(selectedDate, 1))}
+                  onClick={() => setSelectedDate(addDays(selectedDate, viewMode === 'week' ? 7 : 1))}
                 >
                   <ChevronRight className="h-4 w-4" />
                 </Button>
@@ -135,9 +163,15 @@ export default function Calendar() {
               {/* Calendar Picker */}
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-center">
+                  <Button variant="outline" className="w-full justify-start text-left font-normal">
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    Seleccionar fecha
+                    {viewMode === 'week' ? (
+                      format(startOfWeek(selectedDate, { locale: es }), "d 'de' MMMM", { locale: es }) +
+                      " - " +
+                      format(endOfWeek(selectedDate, { locale: es }), "d 'de' MMMM", { locale: es })
+                    ) : (
+                      format(selectedDate, "EEEE d 'de' MMMM", { locale: es })
+                    )}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -146,77 +180,69 @@ export default function Calendar() {
                     selected={selectedDate}
                     onSelect={(date) => date && setSelectedDate(date)}
                     initialFocus
-                    className="pointer-events-auto"
                   />
                 </PopoverContent>
               </Popover>
             </CardContent>
           </Card>
 
-          {/* View Mode */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Vista</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  variant={viewMode === 'agenda' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setViewMode('agenda')}
-                  className="h-10"
+          {/* Member Filter - Different for each view */}
+          {viewMode === 'agenda' ? (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium">Filtrar por Miembros</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center space-x-2 mb-2">
+                  <Checkbox
+                    id="selectAll"
+                    checked={selectedMembers.length === activeMembers.length}
+                    onCheckedChange={toggleAllMembers}
+                  />
+                  <label htmlFor="selectAll" className="text-sm">
+                    Seleccionar todos ({activeMembers.length})
+                  </label>
+                </div>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {activeMembers.map((member) => (
+                    <div key={member.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={member.id}
+                        checked={selectedMembers.includes(member.id)}
+                        onCheckedChange={() => toggleMember(member.id)}
+                      />
+                      <label htmlFor={member.id} className="text-sm">
+                        {member.first_name} {member.last_name}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+                <div className="text-xs text-gray-500 pt-2 border-t">
+                  {selectedMembers.length} de {activeMembers.length} seleccionados
+                </div>
+              </CardContent>
+            </Card>
+          ) : viewMode === 'week' ? (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium">Profesional</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <select
+                  className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors"
+                  value={selectedMembers.length === 1 ? selectedMembers[0] : ''}
+                  onChange={(e) => setSelectedMembers(e.target.value ? [e.target.value] : [])}
                 >
-                  <Grid className="h-4 w-4 mr-2" />
-                  Agenda
-                </Button>
-                <Button
-                  variant={viewMode === 'list' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setViewMode('list')}
-                  className="h-10"
-                >
-                  <List className="h-4 w-4 mr-2" />
-                  Lista
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Member Filter */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Filtrar por Miembros</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="select-all"
-                  checked={selectedMembers.length === activeMembers.length}
-                  onCheckedChange={toggleAllMembers}
-                />
-                <label htmlFor="select-all" className="text-sm font-medium">
-                  Seleccionar todos ({activeMembers.length})
-                </label>
-              </div>
-              <div className="space-y-2 max-h-48 overflow-y-auto">
-                {activeMembers.map((member) => (
-                  <div key={member.id} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={member.id}
-                      checked={selectedMembers.includes(member.id)}
-                      onCheckedChange={() => toggleMember(member.id)}
-                    />
-                    <label htmlFor={member.id} className="text-sm">
+                  <option value="">Todos los profesionales</option>
+                  {activeMembers.map((member) => (
+                    <option key={member.id} value={member.id}>
                       {member.first_name} {member.last_name}
-                    </label>
-                  </div>
-                ))}
-              </div>
-              <div className="text-xs text-gray-500 pt-2 border-t">
-                {selectedMembers.length} de {activeMembers.length} seleccionados
-              </div>
-            </CardContent>
-          </Card>
+                    </option>
+                  ))}
+                </select>
+              </CardContent>
+            </Card>
+          ) : null}
 
           {/* New Appointment Button */}
           <Button 
@@ -231,7 +257,15 @@ export default function Calendar() {
 
         {/* Main Content */}
         <div className="flex-1">
-          {viewMode === 'agenda' ? (
+          {viewMode === 'week' ? (
+            <WeekAgendaView
+              appointments={appointments}
+              selectedDate={selectedDate}
+              members={members}
+              selectedMemberId={viewMode === 'week' ? selectedMembers[0] : undefined}
+              onMemberChange={(memberId) => setSelectedMembers(memberId ? [memberId] : [])}
+            />
+          ) : viewMode === 'agenda' ? (
             filteredAppointments.length === 0 ? (
               <Card>
                 <CardContent className="p-12 text-center">

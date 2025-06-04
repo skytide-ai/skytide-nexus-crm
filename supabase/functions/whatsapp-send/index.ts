@@ -1,11 +1,10 @@
 // Importaciones para entorno Deno
-// @ts-ignore - Estas importaciones funcionan en el entorno de ejecución de Supabase Edge Functions
+// @ts-expect-error - Estas importaciones funcionan en el entorno de ejecución de Supabase Edge Functions
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-// @ts-ignore
+// @ts-expect-error - Importación de cliente Supabase para entorno Deno
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
 // Declaración para el entorno Deno
-// @ts-ignore - Deno existe en el entorno de ejecución
 declare const Deno: {
   env: {
     get(key: string): string | undefined;

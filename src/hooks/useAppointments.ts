@@ -4,7 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { format, isAfter, isSameDay, parse } from 'date-fns';
+import { format, isAfter, isSameDay, parse, startOfWeek, endOfWeek } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 export interface AppointmentWithDetails {
   id: string;
@@ -15,7 +16,7 @@ export interface AppointmentWithDetails {
   appointment_date: string;
   start_time: string;
   end_time: string;
-  status: 'programada' | 'confirmada' | 'cancelada' | 'no_asistida' | 'en_curso' | 'completada';
+  status: 'programada' | 'confirmada' | 'cancelada' | 'no_asistio' | 'en_curso' | 'completada';
   notes?: string;
   created_at: string;
   updated_at: string;
@@ -43,14 +44,19 @@ export interface CreateAppointmentData {
   start_time: string;
   end_time: string;
   notes?: string;
-  status?: 'programada' | 'confirmada' | 'cancelada' | 'no_asistida' | 'en_curso' | 'completada';
+  status?: 'programada' | 'confirmada' | 'cancelada' | 'no_asistio' | 'en_curso' | 'completada';
 }
 
-export function useAppointments(date?: Date) {
+export interface UseAppointmentsOptions {
+  date?: Date;
+  viewMode?: 'agenda' | 'list' | 'week';
+}
+
+export function useAppointments({ date, viewMode = 'agenda' }: UseAppointmentsOptions = {}) {
   const { profile } = useAuth();
 
   return useQuery({
-    queryKey: ['appointments', profile?.organization_id, date ? format(date, 'yyyy-MM-dd') : null],
+    queryKey: ['appointments', profile?.organization_id, date ? format(date, 'yyyy-MM-dd') : null, viewMode],
     queryFn: async () => {
       if (!profile?.organization_id) {
         throw new Error('No organization found');
@@ -76,9 +82,18 @@ export function useAppointments(date?: Date) {
         `)
         .eq('organization_id', profile.organization_id);
 
-      // Si se proporciona una fecha, filtrar por esa fecha
+      // Si se proporciona una fecha, filtrar según el modo de vista
       if (date) {
-        query = query.eq('appointment_date', format(date, 'yyyy-MM-dd'));
+        if (viewMode === 'week') {
+          // En vista semanal, obtener las citas de toda la semana
+          const weekStart = startOfWeek(date, { locale: es });
+          const weekEnd = endOfWeek(date, { locale: es });
+          query = query.gte('appointment_date', format(weekStart, 'yyyy-MM-dd'))
+                       .lte('appointment_date', format(weekEnd, 'yyyy-MM-dd'));
+        } else {
+          // En otras vistas, solo obtener las citas del día seleccionado
+          query = query.eq('appointment_date', format(date, 'yyyy-MM-dd'));
+        }
       }
 
       const { data, error } = await query.order('start_time', { ascending: true });
@@ -485,268 +500,79 @@ export function useUpdateAppointment() {
 
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<CreateAppointmentData> }) => {
-      if (!profile?.organization_id || !profile?.id) {
+      if (!profile?.organization_id) {
         throw new Error('Missing user profile data');
       }
 
-      // Primero, obtener la cita actual para tener todos los datos
-      const { data: currentAppointment, error: fetchError } = await supabase
+      // Si solo se está actualizando el estado, hacer update directo sin validaciones
+      if (Object.keys(data).length === 1 && 'status' in data) {
+        const { data: appointment, error } = await supabase
+          .from('appointments')
+          .update({ status: data.status, updated_at: new Date().toISOString() })
+          .eq('id', id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        return appointment;
+      }
+
+      // Para otros cambios, obtener la cita actual y validar
+      const { data: currentAppointment } = await supabase
         .from('appointments')
         .select('*')
         .eq('id', id)
         .single();
 
-      if (fetchError || !currentAppointment) {
-        console.error('Error fetching current appointment:', fetchError);
-        throw new Error('No se pudo encontrar la cita a actualizar.');
+      if (!currentAppointment) {
+        throw new Error('Cita no encontrada');
       }
 
-      // Combinar los datos actuales con los nuevos datos
-      const updatedAppointmentData = {
-        ...currentAppointment,
-        ...data
-      };
-
-      // Solo validar fecha y hora futuras si se están modificando estos campos
-      if (data.appointment_date || data.start_time || data.end_time) {
-        const appointmentDateTime = new Date(`${updatedAppointmentData.appointment_date}T${updatedAppointmentData.start_time}`);
+      // Validar fecha futura solo si se está cambiando fecha u hora
+      if (data.appointment_date || data.start_time) {
+        const appointmentDateTime = new Date(
+          `${data.appointment_date || currentAppointment.appointment_date}T${data.start_time || currentAppointment.start_time}`
+        );
         const now = new Date();
         
         if (!isAfter(appointmentDateTime, now)) {
-          throw new Error('No se puede agendar citas en el pasado. Selecciona una fecha y hora futuras.');
+          throw new Error('No se puede reagendar una cita para una fecha y hora pasada.');
         }
       }
 
-      // Validar que el miembro esté activo
-      if (updatedAppointmentData.member_id) {
-        const { data: member, error: memberError } = await supabase
-          .from('profiles')
-          .select('is_active')
-          .eq('id', updatedAppointmentData.member_id)
-          .eq('organization_id', profile.organization_id)
-          .single();
+      // Verificar conflictos solo si hay cambios en horario o miembro
+      if (data.start_time || data.end_time || data.member_id || data.appointment_date) {
+        const memberId = data.member_id || currentAppointment.member_id;
+        if (memberId) {
+          const { data: existingAppointments } = await supabase
+            .from('appointments')
+            .select('*')
+            .eq('member_id', memberId)
+            .eq('appointment_date', data.appointment_date || currentAppointment.appointment_date)
+            .neq('id', id);
 
-        if (memberError || !member || !member.is_active) {
-          throw new Error('El miembro seleccionado no está activo.');
-        }
-      }
+          const startTime = data.start_time || currentAppointment.start_time;
+          const endTime = data.end_time || currentAppointment.end_time;
+          const normalizedNewStartTime = String(startTime).trim().substring(0, 5);
+          const normalizedNewEndTime = String(endTime).trim().substring(0, 5);
 
-      // Validar que el servicio esté activo
-      if (updatedAppointmentData.service_id) {
-        const { data: service, error: serviceError } = await supabase
-          .from('services')
-          .select('is_active')
-          .eq('id', updatedAppointmentData.service_id)
-          .eq('organization_id', profile.organization_id)
-          .single();
+          const hasConflict = existingAppointments?.some(apt => {
+            const normalizedExistingStartTime = String(apt.start_time).trim().substring(0, 5);
+            const normalizedExistingEndTime = String(apt.end_time).trim().substring(0, 5);
+            return normalizedNewStartTime < normalizedExistingEndTime && 
+                   normalizedNewEndTime > normalizedExistingStartTime;
+          });
 
-        if (serviceError || !service || !service.is_active) {
-          throw new Error('El servicio seleccionado no está activo.');
-        }
-      }
-
-      // Validar disponibilidad del miembro
-      if (updatedAppointmentData.member_id) {
-        const appointmentDate = parse(updatedAppointmentData.appointment_date, 'yyyy-MM-dd', new Date());
-        const dayOfWeek = appointmentDate.getDay(); // 0 = domingo, 1 = lunes, etc.
-        
-        // Verificar disponibilidad regular del miembro para el día específico
-        const { data: availability, error: availabilityError } = await supabase
-          .from('member_availability')
-          .select('*')
-          .eq('member_id', updatedAppointmentData.member_id)
-          .eq('organization_id', profile.organization_id)
-          .eq('day_of_week', dayOfWeek)
-          .eq('is_available', true);
-
-        if (availabilityError) {
-          console.error('Error checking availability:', availabilityError);
-          throw new Error('Error al verificar la disponibilidad del miembro.');
-        }
-
-        if (!availability || availability.length === 0) {
-          throw new Error(`El miembro no está disponible los ${['domingos', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábados'][dayOfWeek]}.`);
-        }
-
-        // Verificar que la hora esté dentro del horario disponible
-        const startTime = updatedAppointmentData.start_time;
-        const endTime = updatedAppointmentData.end_time;
-        
-        const isTimeValid = availability.some(slot => {
-          // Normalizar las horas para comparación (asegurar que sean strings)
-          const normalizedStartTime = String(startTime).trim().substring(0, 5); // Tomar solo HH:MM
-          const normalizedEndTime = String(endTime).trim().substring(0, 5); // Tomar solo HH:MM
-          const normalizedSlotStartTime = String(slot.start_time).trim().substring(0, 5); // Tomar solo HH:MM
-          const normalizedSlotEndTime = String(slot.end_time).trim().substring(0, 5); // Tomar solo HH:MM
-          
-          // Verificar si la cita está dentro del horario de trabajo
-          const isWithinWorkingHours = (
-            normalizedStartTime >= normalizedSlotStartTime && 
-            normalizedEndTime <= normalizedSlotEndTime
-          );
-          
-          // Si hay descanso, verificar que la cita no interfiera
-          if (slot.break_start_time && slot.break_end_time) {
-            const breakStartTime = String(slot.break_start_time).trim().substring(0, 5);
-            const breakEndTime = String(slot.break_end_time).trim().substring(0, 5);
-            
-            // Verificar si la cita está completamente dentro del descanso
-            const appointmentDuringBreak = 
-              (normalizedStartTime >= breakStartTime && normalizedStartTime < breakEndTime) || 
-              (normalizedEndTime > breakStartTime && normalizedEndTime <= breakEndTime) ||
-              (normalizedStartTime <= breakStartTime && normalizedEndTime >= breakEndTime);
-            
-            return isWithinWorkingHours && !appointmentDuringBreak;
+          if (hasConflict) {
+            throw new Error('Ya existe una cita en este horario para el miembro seleccionado.');
           }
-          
-          return isWithinWorkingHours;
-        });
-
-        if (!isTimeValid) {
-          throw new Error('La hora seleccionada está fuera del horario disponible del miembro.');
-        }
-
-        // Verificar fechas especiales del miembro
-        const { data: specialDate } = await supabase
-          .from('member_special_dates')
-          .select('*')
-          .eq('member_id', updatedAppointmentData.member_id)
-          .eq('date', updatedAppointmentData.appointment_date)
-          .single();
-
-        if (specialDate) {
-          if (!specialDate.is_available) {
-            throw new Error('El miembro no está disponible en esta fecha específica.');
-          }
-          
-          // Si tiene horario especial, validar contra ese horario
-          if (specialDate.start_time && specialDate.end_time) {
-            // Normalizar las horas para comparación
-            const normalizedStartTime = String(updatedAppointmentData.start_time).trim().substring(0, 5);
-            const normalizedEndTime = String(updatedAppointmentData.end_time).trim().substring(0, 5);
-            const normalizedSpecialStartTime = String(specialDate.start_time).trim().substring(0, 5);
-            const normalizedSpecialEndTime = String(specialDate.end_time).trim().substring(0, 5);
-            
-            if (normalizedStartTime < normalizedSpecialStartTime || normalizedEndTime > normalizedSpecialEndTime) {
-              throw new Error('La hora seleccionada está fuera del horario especial del miembro para esta fecha.');
-            }
-          }
-        }
-      }
-
-      // Validar disponibilidad de la organización
-      const appointmentDate = parse(updatedAppointmentData.appointment_date, 'yyyy-MM-dd', new Date());
-      const dayOfWeek = appointmentDate.getDay();
-      
-      const { data: orgAvailability, error: orgAvailabilityError } = await supabase
-        .from('organization_availability')
-        .select('*')
-        .eq('organization_id', profile.organization_id)
-        .eq('day_of_week', dayOfWeek)
-        .eq('is_available', true);
-
-      if (orgAvailabilityError) {
-        console.error('Error checking organization availability:', orgAvailabilityError);
-        throw new Error('Error al verificar la disponibilidad de la organización.');
-      }
-
-      if (!orgAvailability || orgAvailability.length === 0) {
-        throw new Error('La organización no está disponible en este día de la semana.');
-      }
-
-      // Verificar fechas especiales de la organización
-      const { data: orgSpecialDate } = await supabase
-        .from('organization_special_dates')
-        .select('*')
-        .eq('organization_id', profile.organization_id)
-        .eq('date', updatedAppointmentData.appointment_date)
-        .single();
-
-      if (orgSpecialDate && !orgSpecialDate.is_available) {
-        throw new Error('La organización no está disponible en esta fecha específica.');
-      }
-      
-      // Si la organización tiene horario especial para esta fecha, validar contra ese horario
-      if (orgSpecialDate && orgSpecialDate.is_available && orgSpecialDate.start_time && orgSpecialDate.end_time) {
-        // Normalizar las horas para comparación
-        const normalizedStartTime = String(updatedAppointmentData.start_time).trim().substring(0, 5);
-        const normalizedEndTime = String(updatedAppointmentData.end_time).trim().substring(0, 5);
-        const normalizedSpecialStartTime = String(orgSpecialDate.start_time).trim().substring(0, 5);
-        const normalizedSpecialEndTime = String(orgSpecialDate.end_time).trim().substring(0, 5);
-        
-        if (normalizedStartTime < normalizedSpecialStartTime || normalizedEndTime > normalizedSpecialEndTime) {
-          throw new Error('La hora seleccionada está fuera del horario especial de la organización para esta fecha.');
-        }
-      }
-      
-      // Verificar que la hora esté dentro del horario disponible de la organización
-      const isOrgTimeValid = orgAvailability.some(slot => {
-        // Normalizar las horas para comparación
-        const normalizedStartTime = String(updatedAppointmentData.start_time).trim().substring(0, 5);
-        const normalizedEndTime = String(updatedAppointmentData.end_time).trim().substring(0, 5);
-        const normalizedSlotStartTime = String(slot.start_time).trim().substring(0, 5);
-        const normalizedSlotEndTime = String(slot.end_time).trim().substring(0, 5);
-        
-        // Verificar si la cita está dentro del horario de trabajo de la organización
-        const isWithinWorkingHours = normalizedStartTime >= normalizedSlotStartTime && normalizedEndTime <= normalizedSlotEndTime;
-        
-        // Si hay descanso, verificar que la cita no interfiera
-        if (slot.break_start_time && slot.break_end_time) {
-          const normalizedBreakStart = String(slot.break_start_time).trim().substring(0, 5);
-          const normalizedBreakEnd = String(slot.break_end_time).trim().substring(0, 5);
-          
-          const doesNotConflictWithBreak = normalizedEndTime <= normalizedBreakStart || normalizedStartTime >= normalizedBreakEnd;
-          return isWithinWorkingHours && doesNotConflictWithBreak;
-        }
-        
-        return isWithinWorkingHours;
-      });
-      
-      if (!isOrgTimeValid) {
-        throw new Error('La hora seleccionada está fuera del horario disponible de la organización.');
-      }
-
-      // Verificar conflictos con otras citas del mismo miembro
-      if (updatedAppointmentData.member_id) {
-        const { data: existingAppointments, error: conflictError } = await supabase
-          .from('appointments')
-          .select('id, start_time, end_time')
-          .eq('member_id', updatedAppointmentData.member_id)
-          .eq('appointment_date', updatedAppointmentData.appointment_date)
-          .in('status', ['programada', 'confirmada', 'en_curso'])
-          .neq('id', id); // Excluir la cita actual que estamos editando
-
-        if (conflictError) {
-          throw new Error('Error al verificar conflictos de horario.');
-        }
-
-        // Normalizar las horas para comparación
-        const normalizedNewStartTime = String(updatedAppointmentData.start_time).trim().substring(0, 5);
-        const normalizedNewEndTime = String(updatedAppointmentData.end_time).trim().substring(0, 5);
-        
-        const hasConflict = existingAppointments?.some(apt => {
-          // Normalizar las horas de la cita existente
-          const normalizedExistingStartTime = String(apt.start_time).trim().substring(0, 5);
-          const normalizedExistingEndTime = String(apt.end_time).trim().substring(0, 5);
-          
-          // Permitir citas "espalda con espalda": una cita puede comenzar exactamente cuando termina otra
-          // o terminar exactamente cuando comienza otra
-          return normalizedNewStartTime < normalizedExistingEndTime && normalizedNewEndTime > normalizedExistingStartTime;
-        });
-
-        if (hasConflict) {
-          throw new Error('Ya existe una cita en este horario para el miembro seleccionado.');
         }
       }
 
       // Realizar la actualización
-      const { data: updatedAppointment, error } = await supabase
+      const { data: appointment, error } = await supabase
         .from('appointments')
-        .update({ 
-          ...data, 
-          updated_at: new Date().toISOString()
-          // No existe la columna updated_by en la tabla appointments
-        })
+        .update({ ...data, updated_at: new Date().toISOString() })
         .eq('id', id)
         .select()
         .single();
@@ -756,7 +582,7 @@ export function useUpdateAppointment() {
         throw error;
       }
 
-      return updatedAppointment;
+      return appointment;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['appointments'] });

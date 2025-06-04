@@ -12,7 +12,7 @@ import {
   ArrowUpRight,
   ArrowDownRight,
 } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, LineChart, Line } from "recharts";
 
 const monthlyData = [
   { name: "Ene", citas: 65, facturacion: 2400000 },
@@ -31,7 +31,7 @@ const topServices = [
   { name: "Terapia", citas: 12, facturacion: 600000 },
 ];
 
-const pieColors = ['#394bd1', '#5862de', '#6f76ea', '#8d94f1', '#afb7f7'];
+// La variable pieColors ha sido eliminada ya que no se utiliza
 
 export function Dashboard() {
   return (
@@ -174,16 +174,16 @@ export function Dashboard() {
         </Card>
       </div>
 
-      {/* Top servicios */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2">
+      {/* Top servicios y Análisis por Servicio */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
           <CardHeader>
             <CardTitle>Top 5 Servicios Más Agendados</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               {topServices.map((service, index) => (
-                <div key={service.name} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div key={service.name} className="flex justify-between items-center p-2 bg-gray-50 rounded-lg">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-white font-bold text-sm">
                       {index + 1}
@@ -205,86 +205,81 @@ export function Dashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Distribución de Servicios</CardTitle>
+            <CardTitle>Análisis por Servicio</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
-              <PieChart>
-                <Pie
-                  data={topServices}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={40}
-                  outerRadius={80}
-                  dataKey="citas"
-                  nameKey="name"
+            <div className="flex gap-4 items-end">
+              <div className="flex-1">
+                <label className="text-sm font-medium text-gray-700 block mb-2">
+                  Seleccionar Servicio
+                </label>
+                <Select>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Elige un servicio..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {topServices.map((service) => (
+                      <SelectItem key={service.name} value={service.name}>
+                        {service.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button className="bg-primary hover:bg-primary-700">
+                Analizar
+              </Button>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4 mt-4">
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <p className="text-sm text-blue-600 font-medium">Total de Citas</p>
+                <p className="text-xl font-bold text-blue-900">45</p>
+              </div>
+              <div className="bg-green-50 p-4 rounded-lg">
+                <p className="text-sm text-green-600 font-medium">Facturación</p>
+                <p className="text-xl font-bold text-green-900">$1.35M</p>
+              </div>
+            </div>
+            
+            {/* Gráfico comparativo */}
+            <div className="mt-6">
+              <p className="text-sm font-medium text-gray-700 mb-3">Comparativa Mensual</p>
+              <ResponsiveContainer width="100%" height={180}>
+                <BarChart
+                  data={[
+                    { mes: 'Ene', citas: 8, facturacion: 240000 },
+                    { mes: 'Feb', citas: 6, facturacion: 180000 },
+                    { mes: 'Mar', citas: 10, facturacion: 300000 },
+                    { mes: 'Abr', citas: 12, facturacion: 360000 },
+                    { mes: 'May', citas: 9, facturacion: 270000 },
+                  ]}
+                  margin={{ top: 5, right: 5, bottom: 5, left: 0 }}
                 >
-                  {topServices.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={pieColors[index % pieColors.length]} />
-                  ))}
-                </Pie>
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="mt-4 space-y-2">
-              {topServices.slice(0, 3).map((service, index) => (
-                <div key={service.name} className="flex items-center gap-2 text-sm">
-                  <div 
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: pieColors[index] }}
-                  />
-                  <span className="text-gray-600">{service.name}</span>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                  <XAxis dataKey="mes" fontSize={10} tickLine={false} axisLine={false} />
+                  <YAxis yAxisId="left" orientation="left" stroke="#8884d8" hide />
+                  <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" hide />
+                  <Bar yAxisId="left" dataKey="citas" fill="#8884d8" radius={[4, 4, 0, 0]} name="Citas" />
+                  <Bar yAxisId="right" dataKey="facturacion" fill="#82ca9d" radius={[4, 4, 0, 0]} name="Facturación" />
+                </BarChart>
+              </ResponsiveContainer>
+              <div className="flex justify-center gap-6 mt-2">
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 rounded-full bg-[#8884d8]"></div>
+                  <span className="text-xs text-gray-600">Citas</span>
                 </div>
-              ))}
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 rounded-full bg-[#82ca9d]"></div>
+                  <span className="text-xs text-gray-600">Facturación</span>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Buscador de servicios */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Análisis por Servicio</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-4 items-end">
-            <div className="flex-1">
-              <label className="text-sm font-medium text-gray-700 block mb-2">
-                Seleccionar Servicio
-              </label>
-              <Select>
-                <SelectTrigger>
-                  <SelectValue placeholder="Elige un servicio..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {topServices.map((service) => (
-                    <SelectItem key={service.name} value={service.name}>
-                      {service.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Button className="bg-primary hover:bg-primary-700">
-              Analizar
-            </Button>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <p className="text-sm text-blue-600 font-medium">Total de Citas</p>
-              <p className="text-2xl font-bold text-blue-900">45</p>
-            </div>
-            <div className="bg-green-50 p-4 rounded-lg">
-              <p className="text-sm text-green-600 font-medium">Facturación</p>
-              <p className="text-2xl font-bold text-green-900">$1,350,000</p>
-            </div>
-            <div className="bg-purple-50 p-4 rounded-lg">
-              <p className="text-sm text-purple-600 font-medium">Precio Promedio</p>
-              <p className="text-2xl font-bold text-purple-900">$30,000</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* El componente de Análisis por Servicio se ha movido al lado del Top 5 */}
     </div>
   );
 }

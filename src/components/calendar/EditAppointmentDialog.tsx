@@ -1,15 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,6 +9,8 @@ import { useMembers } from '@/hooks/useMembers';
 import { useServices } from '@/hooks/useServices';
 import { useContacts } from '@/hooks/useContacts';
 import { useUpdateAppointment, useDeleteAppointment, AppointmentWithDetails } from '@/hooks/useAppointments';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface EditAppointmentDialogProps {
@@ -28,6 +20,7 @@ interface EditAppointmentDialogProps {
 }
 
 export function EditAppointmentDialog({ open, onOpenChange, appointment }: EditAppointmentDialogProps) {
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [formData, setFormData] = useState<Partial<AppointmentWithDetails>>({});
 
   const { members } = useMembers();
@@ -35,7 +28,6 @@ export function EditAppointmentDialog({ open, onOpenChange, appointment }: EditA
   const { data: contacts = [] } = useContacts();
   const updateAppointment = useUpdateAppointment();
   const deleteAppointment = useDeleteAppointment();
-  const [showDeleteAlert, setShowDeleteAlert] = useState(false);
 
   // Inicializar el formulario cuando se abre el diálogo con los datos de la cita
   useEffect(() => {
@@ -45,8 +37,8 @@ export function EditAppointmentDialog({ open, onOpenChange, appointment }: EditA
         member_id: appointment.member_id,
         service_id: appointment.service_id,
         appointment_date: appointment.appointment_date,
-        start_time: appointment.start_time,
-        end_time: appointment.end_time,
+        start_time: appointment.start_time.substring(0, 5),
+        end_time: appointment.end_time.substring(0, 5),
         notes: appointment.notes,
         status: appointment.status
       });
@@ -92,28 +84,47 @@ export function EditAppointmentDialog({ open, onOpenChange, appointment }: EditA
     }
   }, [formData.member_id]);
 
-  const handleDelete = async () => {
-    if (!appointment) return;
-
-    try {
-      await deleteAppointment.mutateAsync(appointment.id);
-      onOpenChange(false);
-    } catch (error) {
-      console.error('Error deleting appointment:', error);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!appointment || !formData.contact_id || !formData.start_time || !formData.end_time) {
-      return;
-    }
+    if (!appointment) return;
 
     try {
+      // Obtener solo los campos que han cambiado
+      const changedFields = Object.entries(formData).reduce((acc, [key, value]) => {
+        const appointmentKey = key as keyof typeof appointment;
+        const formValue = value as typeof appointment[keyof typeof appointment];
+        
+        if (formValue !== appointment[appointmentKey]) {
+          acc[key] = formValue;
+        }
+        return acc;
+      }, {} as Partial<typeof formData>);
+
+      // Si no hay cambios, cerrar el diálogo
+      if (Object.keys(changedFields).length === 0) {
+        onOpenChange(false);
+        return;
+      }
+
+      // Si solo se está cambiando el estado, no validar otros campos
+      if (Object.keys(changedFields).length === 1 && 'status' in changedFields) {
+        await updateAppointment.mutateAsync({
+          id: appointment.id,
+          data: { status: changedFields.status }
+        });
+        onOpenChange(false);
+        return;
+      }
+
+      // Para otros cambios, validar campos requeridos
+      if (!formData.contact_id || !formData.start_time || !formData.end_time) {
+        return;
+      }
+
       await updateAppointment.mutateAsync({
         id: appointment.id,
-        data: formData
+        data: changedFields
       });
       onOpenChange(false);
     } catch (error) {
@@ -124,7 +135,8 @@ export function EditAppointmentDialog({ open, onOpenChange, appointment }: EditA
   const availableServices = getAvailableServices();
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Editar Cita</DialogTitle>
@@ -197,7 +209,7 @@ export function EditAppointmentDialog({ open, onOpenChange, appointment }: EditA
             />
             {formData.service_id && formData.end_time && (
               <p className="text-sm text-gray-500 mt-1">
-                Fin estimado: {formData.end_time}
+                Fin estimado: {formData.end_time.substring(0, 5)}
               </p>
             )}
           </div>
@@ -238,7 +250,7 @@ export function EditAppointmentDialog({ open, onOpenChange, appointment }: EditA
                 <SelectItem value="en_curso">En curso</SelectItem>
                 <SelectItem value="completada">Completada</SelectItem>
                 <SelectItem value="cancelada">Cancelada</SelectItem>
-                <SelectItem value="no_asistida">No asistió</SelectItem>
+                <SelectItem value="no_asistio">No asistió</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -253,14 +265,15 @@ export function EditAppointmentDialog({ open, onOpenChange, appointment }: EditA
             />
           </div>
 
-          <div className="flex justify-between pt-4">
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={() => setShowDeleteAlert(true)}
-              disabled={deleteAppointment.isPending}
+          <div className="flex justify-between items-center pt-4">
+            <Button 
+              type="button" 
+              variant="ghost" 
+              onClick={() => setShowDeleteDialog(true)}
+              className="text-red-600 hover:text-red-700 hover:bg-red-50"
             >
-              {deleteAppointment.isPending ? 'Eliminando...' : 'Eliminar cita'}
+              <Trash2 className="h-4 w-4 mr-2" />
+              Eliminar
             </Button>
             <div className="flex gap-2">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
@@ -273,26 +286,33 @@ export function EditAppointmentDialog({ open, onOpenChange, appointment }: EditA
           </div>
         </form>
       </DialogContent>
-
-      <AlertDialog open={showDeleteAlert} onOpenChange={setShowDeleteAlert}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción no se puede deshacer. La cita será eliminada permanentemente.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Eliminar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </Dialog>
+
+    <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Esta acción eliminará permanentemente la cita
+            {appointment && ` con ${appointment.contacts.first_name} ${appointment.contacts.last_name} programada para el ${appointment.appointment_date} a las ${appointment.start_time}`}.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction 
+            onClick={() => {
+              if (appointment) {
+                deleteAppointment.mutate(appointment.id);
+                onOpenChange(false);
+              }
+            }}
+            className="bg-red-600 hover:bg-red-700"
+          >
+            {deleteAppointment.isPending ? 'Eliminando...' : 'Eliminar'}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

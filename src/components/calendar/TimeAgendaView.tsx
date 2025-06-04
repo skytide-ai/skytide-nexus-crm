@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -18,18 +19,13 @@ interface TimeAgendaViewProps {
   showMemberFilter?: boolean;
 }
 
-interface EditDialogState {
-  isOpen: boolean;
-  appointment: AppointmentWithDetails | null;
-}
-
 const statusConfig = {
-  programada: { label: 'Programada', color: 'bg-blue-100 text-blue-800 border-l-blue-500' },
+  programada: { label: 'Programada', color: 'bg-gray-100 text-gray-800 border-l-gray-500' },
   confirmada: { label: 'Confirmada', color: 'bg-green-100 text-green-800 border-l-green-500' },
   cancelada: { label: 'Cancelada', color: 'bg-red-100 text-red-800 border-l-red-500' },
-  no_asistida: { label: 'No asistió', color: 'bg-orange-100 text-orange-800 border-l-orange-500' },
+  no_asistio: { label: 'No asistió', color: 'bg-orange-100 text-orange-800 border-l-orange-500' },
   en_curso: { label: 'En curso', color: 'bg-purple-100 text-purple-800 border-l-purple-500' },
-  completada: { label: 'Completada', color: 'bg-gray-100 text-gray-800 border-l-gray-500' },
+  completada: { label: 'Completada', color: 'bg-blue-100 text-blue-800 border-l-blue-500' },
 };
 
 const BOGOTA_TIMEZONE = 'America/Bogota';
@@ -41,19 +37,8 @@ export function TimeAgendaView({
   selectedMembers,
   showMemberFilter = true 
 }: TimeAgendaViewProps) {
-  const [editDialog, setEditDialog] = useState<EditDialogState>({
-    isOpen: false,
-    appointment: null
-  });
-
-  const handleAppointmentClick = (appointment: AppointmentWithDetails) => {
-    console.log('Clicked appointment:', appointment);
-    setEditDialog({
-      isOpen: true,
-      appointment
-    });
-  };
-
+  const [selectedAppointment, setSelectedAppointment] = useState<AppointmentWithDetails | null>(null);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const activeMembers = members.filter(m => m.is_active);
   const visibleMembers = activeMembers.filter(m => selectedMembers.includes(m.id));
 
@@ -62,10 +47,10 @@ export function TimeAgendaView({
   console.log('TimeAgendaView - selectedMembers:', selectedMembers);
   console.log('TimeAgendaView - visibleMembers:', visibleMembers);
 
-  // Generate time slots from 6 AM to 10 PM
+  // Generate time slots from 4 AM to 10 PM
   const generateTimeSlots = () => {
     const slots = [];
-    for (let hour = 6; hour <= 22; hour++) {
+    for (let hour = 4; hour <= 22; hour++) {
       slots.push(`${hour.toString().padStart(2, '0')}:00`);
     }
     return slots;
@@ -86,7 +71,7 @@ export function TimeAgendaView({
       currentHour,
       currentMinute,
       isToday,
-      shouldShowLine: isToday && currentHour >= 6 && currentHour <= 22
+      shouldShowLine: isToday && currentHour >= 4 && currentHour <= 22
     };
   };
 
@@ -248,14 +233,14 @@ export function TimeAgendaView({
                           <div
                             key={appointment.id}
                             style={style}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleAppointmentClick(appointment);
-                            }}
                             className={cn(
                               "rounded border-l-4 p-2 text-xs shadow-sm cursor-pointer hover:shadow-md transition-shadow",
                               status.color
                             )}
+                            onClick={() => {
+                              setSelectedAppointment(appointment);
+                              setShowEditDialog(true);
+                            }}
                           >
                             <div className="flex items-start justify-between gap-1">
                               <div className="flex-1 min-w-0">
@@ -271,7 +256,11 @@ export function TimeAgendaView({
                                   </div>
                                 )}
                               </div>
-                              <Badge className={cn("text-xs shrink-0 ml-1", status.color.replace('border-l-', 'bg-').replace('100', '200'))}>
+                              <Badge className={cn("text-[10px] shrink-0 mt-1", 
+                    appointment.status === 'programada' ? 'bg-gray-400 text-white' :
+                    appointment.status === 'no_asistio' ? 'bg-orange-400 text-white' :
+                    status.color.replace('border-l-', 'bg-').replace('100', '200')
+                  )}>
                                 {status.label}
                               </Badge>
                             </div>
@@ -287,12 +276,14 @@ export function TimeAgendaView({
         </div>
       </div>
 
-      {/* Diálogo de edición */}
-      <EditAppointmentDialog
-        open={editDialog.isOpen}
-        onOpenChange={(open) => setEditDialog({ isOpen: open, appointment: open ? editDialog.appointment : null })}
-        appointment={editDialog.appointment}
-      />
+      {/* Modal de edición */}
+      {selectedAppointment && (
+        <EditAppointmentDialog
+          open={showEditDialog}
+          onOpenChange={setShowEditDialog}
+          appointment={selectedAppointment}
+        />
+      )}
     </div>
   );
 }
