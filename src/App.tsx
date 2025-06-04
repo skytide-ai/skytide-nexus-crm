@@ -1,103 +1,69 @@
 
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "./contexts/AuthContext";
-import { ProtectedRoute } from "./components/ProtectedRoute";
-import { Layout } from "./components/Layout";
-import { Dashboard } from "./components/Dashboard";
-import Auth from "./pages/Auth";
-import SetPassword from "./pages/SetPassword";
-import Members from "./pages/Members";
-import Services from "./pages/Services";
-import AcceptInvitation from "./pages/AcceptInvitation";
-import NotFound from "./pages/NotFound";
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Toaster } from '@/components/ui/toaster';
+import { AuthProvider } from '@/contexts/AuthContext';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { Layout } from '@/components/Layout';
+import Auth from '@/pages/Auth';
+import { Dashboard } from '@/components/Dashboard';
+import Members from '@/pages/Members';
+import Services from '@/pages/Services';
+import { Availability } from '@/pages/Availability';
+import Contacts from '@/pages/Contacts';
+import Calendar from '@/pages/Calendar';
+import AcceptInvitation from '@/pages/AcceptInvitation';
+import SetPassword from '@/pages/SetPassword';
+import NotFound from '@/pages/NotFound';
+import SystemAdmin from '@/pages/SystemAdmin';
+import AdminWhatsApp from '@/pages/AdminWhatsApp';
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AuthProvider>
           <Routes>
             <Route path="/auth" element={<Auth />} />
-            <Route path="/set-password" element={<SetPassword />} />
+            <Route path="/accept-invitation" element={<AcceptInvitation />} />
             <Route path="/aceptar-invitacion" element={<AcceptInvitation />} />
-            <Route path="/invite/accept" element={<AcceptInvitation />} />
-            <Route path="/" element={
-              <ProtectedRoute>
-                <Layout>
-                  <Dashboard />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/calendar" element={
-              <ProtectedRoute>
-                <Layout>
-                  <div className="text-center text-gray-500 py-20">Módulo de Calendario - En desarrollo</div>
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/appointments" element={
-              <ProtectedRoute>
-                <Layout>
-                  <div className="text-center text-gray-500 py-20">Módulo de Agendamientos - En desarrollo</div>
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/contacts" element={
-              <ProtectedRoute>
-                <Layout>
-                  <div className="text-center text-gray-500 py-20">Módulo de Contactos - En desarrollo</div>
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/services" element={
-              <ProtectedRoute requiredRole="admin">
-                <Layout>
-                  <Services />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/members" element={
-              <ProtectedRoute requiredRole="admin">
-                <Layout>
-                  <Members />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/availability" element={
-              <ProtectedRoute>
-                <Layout>
-                  <div className="text-center text-gray-500 py-20">Módulo de Disponibilidad - En desarrollo</div>
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/settings" element={
-              <ProtectedRoute requiredRole="admin">
-                <Layout>
-                  <div className="text-center text-gray-500 py-20">Configuración - En desarrollo</div>
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/system-admin" element={
-              <ProtectedRoute requiredRole="superadmin">
-                <Layout>
-                  <div className="text-center text-gray-500 py-20">Administración del Sistema - En desarrollo</div>
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="*" element={<NotFound />} />
+            <Route path="/set-password" element={<SetPassword />} />
+            <Route path="/system-admin" element={<SystemAdmin />} />
+            <Route
+              path="/*"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Routes>
+                      <Route path="/" element={<Dashboard />} />
+                      <Route path="/members" element={<Members />} />
+                      <Route path="/services" element={<Services />} />
+                      <Route path="/availability" element={<Availability />} />
+                      <Route path="/contacts" element={<Contacts />} />
+                      <Route path="/calendar" element={<Calendar />} />
+                      <Route path="/admin/whatsapp" element={<AdminWhatsApp />} />
+                      <Route path="/admin/whatsapp/:phoneNumber" element={<AdminWhatsApp />} />
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
           </Routes>
+          <Toaster />
         </AuthProvider>
       </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+    </QueryClientProvider>
+  );
+}
 
 export default App;

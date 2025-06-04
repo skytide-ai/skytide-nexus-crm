@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -8,6 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Edit, Trash2 } from 'lucide-react';
 import { MemberProfile } from '@/types/member';
 import { useAuth } from '@/contexts/AuthContext';
+import { EditMemberDialog } from './EditMemberDialog';
 
 interface MembersTableProps {
   members: MemberProfile[];
@@ -15,6 +16,7 @@ interface MembersTableProps {
   searchTerm: string;
   onToggleActive: (memberId: string, isActive: boolean) => void;
   onDeleteMember: (memberId: string) => void;
+  onUpdateMember: (memberId: string, updates: Partial<MemberProfile>) => void;
 }
 
 export const MembersTable: React.FC<MembersTableProps> = ({
@@ -22,8 +24,11 @@ export const MembersTable: React.FC<MembersTableProps> = ({
   isLoading,
   searchTerm,
   onToggleActive,
-  onDeleteMember
+  onDeleteMember,
+  onUpdateMember
 }) => {
+  const [editingMember, setEditingMember] = useState<MemberProfile | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const { profile } = useAuth();
 
   const filteredMembers = members.filter(member =>
@@ -33,14 +38,15 @@ export const MembersTable: React.FC<MembersTableProps> = ({
   );
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Miembros Activos</CardTitle>
-        <CardDescription>
-          {filteredMembers.length} miembro{filteredMembers.length !== 1 ? 's' : ''} encontrado{filteredMembers.length !== 1 ? 's' : ''}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle>Miembros Activos</CardTitle>
+          <CardDescription>
+            {filteredMembers.length} miembro{filteredMembers.length !== 1 ? 's' : ''} encontrado{filteredMembers.length !== 1 ? 's' : ''}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
         {isLoading ? (
           <div className="text-center py-8">Cargando miembros...</div>
         ) : filteredMembers.length === 0 ? (
@@ -102,7 +108,14 @@ export const MembersTable: React.FC<MembersTableProps> = ({
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          setEditingMember(member);
+                          setIsEditDialogOpen(true);
+                        }}
+                      >
                         <Edit className="h-4 w-4" />
                       </Button>
                       {member.id !== profile?.id && (
@@ -122,7 +135,18 @@ export const MembersTable: React.FC<MembersTableProps> = ({
             </TableBody>
           </Table>
         )}
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+
+      {/* Diálogo de edición de miembro */}
+      {editingMember && (
+        <EditMemberDialog
+          open={isEditDialogOpen}
+          onOpenChange={setIsEditDialogOpen}
+          member={editingMember}
+          onUpdate={onUpdateMember}
+        />
+      )}
+    </>
   );
 };
