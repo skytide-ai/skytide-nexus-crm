@@ -108,7 +108,7 @@ export function SpecialDates({
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 mb-2">
               <Calendar className="h-5 w-5" />
               {title}
             </CardTitle>
@@ -216,24 +216,24 @@ export function SpecialDates({
       <CardContent>
         <div className="space-y-3">
           {sortedDates.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <Calendar className="h-12 w-12 mx-auto mb-4 opacity-20" />
-              <p>No hay fechas especiales definidas</p>
+            <div className="text-center py-10 text-slate-500 flex flex-col items-center justify-center min-h-[200px]">
+              <Calendar className="h-16 w-16 mx-auto mb-5 text-slate-300" />
+              <p className="text-md">No hay fechas especiales definidas</p>
             </div>
           ) : (
             sortedDates.map((specialDate) => (
-              <div key={specialDate.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <div className="flex-1">
+              <div key={specialDate.id} className="flex items-start justify-between p-4 bg-slate-50 rounded-lg shadow-sm">
+                <div className="flex-1 mr-2">
                   <div className="flex items-center gap-2 mb-1">
-                    <h4 className="font-medium text-gray-900">
+                    <h4 className="font-semibold text-slate-800 text-md">
                       {formatDate(specialDate.date)}
                     </h4>
                     {specialDate.is_available ? (
-                      <Badge variant="default" className="bg-blue-500">
+                      <Badge variant="default" className="bg-blue-100 text-blue-700 border border-blue-200 hover:bg-blue-200 text-xs px-2 py-1">
                         Horario especial
                       </Badge>
                     ) : (
-                      <Badge variant="destructive" className="flex items-center gap-1">
+                      <Badge variant="destructive" className="flex items-center gap-1 text-xs px-2 py-1">
                         <AlertCircle className="h-3 w-3" />
                         Bloqueado
                       </Badge>
@@ -242,11 +242,11 @@ export function SpecialDates({
                   
                   {specialDate.is_available && specialDate.start_time && specialDate.end_time && (
                     <div className="flex items-center gap-2 mb-1">
-                      <Badge variant="outline">
+                      <Badge variant="outline" className="text-xs px-2 py-1 border-slate-300 text-slate-600">
                         {formatTime(specialDate.start_time)} - {formatTime(specialDate.end_time)}
                       </Badge>
                       {specialDate.break_start_time && specialDate.break_end_time && (
-                        <Badge variant="outline" className="flex items-center gap-1">
+                        <Badge variant="outline" className="flex items-center gap-1 text-xs px-2 py-1 border-slate-300 text-slate-600">
                           <Coffee className="h-3 w-3" />
                           {formatTime(specialDate.break_start_time)} - {formatTime(specialDate.break_end_time)}
                         </Badge>
@@ -255,16 +255,16 @@ export function SpecialDates({
                   )}
                   
                   {specialDate.reason && (
-                    <p className="text-sm text-gray-600">{specialDate.reason}</p>
+                    <p className="text-sm text-slate-500 italic mt-1">{specialDate.reason}</p>
                   )}
                 </div>
                 
                 {canEdit && (
                   <Button
                     variant="ghost"
-                    size="sm"
+                    size="icon"
                     onClick={() => onDelete(specialDate.id)}
-                    className="text-red-500 hover:text-red-700"
+                    className="h-7 w-7 text-red-500 hover:bg-red-100 hover:text-red-700 ml-auto"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>

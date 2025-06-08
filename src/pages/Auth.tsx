@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import logo from '@/assets/skytide-logo.png';
 
 export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
@@ -144,14 +145,8 @@ export default function Auth() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
-          <div className="flex justify-center items-center gap-3 mb-6">
-            <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-xl">S</span>
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Skytide</h1>
-              <p className="text-sm text-gray-500">CRM</p>
-            </div>
+          <div className="flex justify-center mb-6">
+            <img src={logo} alt="Skytide" className="h-12" />
           </div>
           <h2 className="text-3xl font-bold text-gray-900">
             Bienvenido

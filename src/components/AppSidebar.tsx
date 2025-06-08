@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/sidebar"
 import { useAuth } from "@/contexts/AuthContext"
 import { Link, useLocation } from "react-router-dom"
+import logo from "@/assets/skytide-logo.png"
 
 const menuItems = [
   {
@@ -86,6 +87,9 @@ export function AppSidebar() {
 
   return (
     <Sidebar>
+      <div className="flex justify-center p-4 border-b border-border">
+        <img src={logo} alt="Skytide" className="h-8" />
+      </div>
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Menú Principal</SidebarGroupLabel>

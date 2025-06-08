@@ -69,44 +69,66 @@ export default function Calendar() {
 
   return (
     <div className="space-y-6">
-      {/* Header - Full Width */}
-      <div>
-        <div className="flex items-center gap-3 mb-2">
-          <div className="flex-1">
+      {/* Header: Title, Description, Badge, and View Mode Buttons */}
+      <div className="flex items-start justify-between">
+        {/* Left Side: Title, Badge, Description */}
+        <div>
+          <div className="flex items-center gap-2">
             <h1 className="text-3xl font-bold text-gray-900">Calendario</h1>
-            <p className="text-gray-600">
-              Gestiona las citas y agenda
-            </p>
-          </div>
-          <div className="flex items-center gap-4">
-            <Badge variant="secondary" className="flex items-center gap-1 px-3 py-1">
-              <CalendarIcon className="h-4 w-4" />
+            <Badge className="bg-indigo-100 text-indigo-700 flex items-center gap-1 px-2 py-1 text-sm">
+              <CalendarIcon className="h-3.5 w-3.5" />
               <span className="font-semibold">{filteredAppointments.length}</span>
             </Badge>
-            <div className="border rounded-lg p-1 flex gap-1">
-              <Button
-                variant={viewMode === 'agenda' ? 'secondary' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('agenda')}
-              >
-                Día
-              </Button>
-              <Button
-                variant={viewMode === 'week' ? 'secondary' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('week')}
-              >
-                Semana
-              </Button>
-              <Button
-                variant={viewMode === 'list' ? 'secondary' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('list')}
-              >
-                Lista
-              </Button>
-            </div>
           </div>
+          <p className="text-gray-600 mt-1">
+            Gestiona las citas y agenda
+          </p>
+        </div>
+
+        {/* Right Side: View Mode Buttons */}
+        <div className="border rounded-lg p-1 flex items-center gap-1 bg-white">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setViewMode('agenda')}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 text-sm",
+              viewMode === 'agenda' 
+                ? "bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
+                : "text-slate-600 hover:bg-slate-100"
+            )}
+          >
+            <Grid className="h-4 w-4" />
+            Día
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setViewMode('week')}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 text-sm",
+              viewMode === 'week' 
+                ? "bg-indigo-100 text-indigo-700 hover:bg-indigo-200" 
+                : "text-slate-600 hover:bg-slate-100"
+            )}
+          >
+            <CalendarIcon className="h-4 w-4" />
+            Semana
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setViewMode('list')}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 text-sm",
+              viewMode === 'list' 
+                ? "bg-indigo-100 text-indigo-700 hover:bg-indigo-200" 
+                : "text-slate-600 hover:bg-slate-100"
+            )}
+          >
+            <List className="h-4 w-4" />
+            Lista
+          </Button>
         </div>
       </div>
 
