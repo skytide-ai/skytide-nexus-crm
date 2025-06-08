@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { Edit, Trash2 } from 'lucide-react';
+import { Edit, Trash2, CheckCircle2, XCircle, Mail } from 'lucide-react';
 import { MemberProfile } from '@/types/member';
 import { useAuth } from '@/contexts/AuthContext';
 import { EditMemberDialog } from './EditMemberDialog';
@@ -40,13 +40,7 @@ export const MembersTable: React.FC<MembersTableProps> = ({
   return (
     <>
       <Card>
-        <CardHeader>
-          <CardTitle>Miembros Activos</CardTitle>
-          <CardDescription>
-            {filteredMembers.length} miembro{filteredMembers.length !== 1 ? 's' : ''} encontrado{filteredMembers.length !== 1 ? 's' : ''}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
         {isLoading ? (
           <div className="text-center py-8">Cargando miembros...</div>
         ) : filteredMembers.length === 0 ? (
@@ -55,23 +49,23 @@ export const MembersTable: React.FC<MembersTableProps> = ({
           </div>
         ) : (
           <Table>
-            <TableHeader>
+            <TableHeader className="bg-slate-50">
               <TableRow>
                 <TableHead>Miembro</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Rol</TableHead>
                 <TableHead>Estado</TableHead>
-                <TableHead>Acciones</TableHead>
+                <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredMembers.map((member) => (
-                <TableRow key={member.id}>
+                <TableRow key={member.id} className="hover:bg-slate-50/50">
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <Avatar>
                         <AvatarImage src={member.avatar_url || undefined} />
-                        <AvatarFallback>
+                        <AvatarFallback className="bg-indigo-500 text-white">
                           {member.first_name[0]}{member.last_name[0]}
                         </AvatarFallback>
                       </Avatar>
@@ -83,9 +77,14 @@ export const MembersTable: React.FC<MembersTableProps> = ({
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell>{member.email}</TableCell>
                   <TableCell>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-slate-500" />
+                      <span className="truncate max-w-[200px]">{member.email}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
                       member.role === 'admin' ? 'bg-blue-100 text-blue-800' :
                       member.role === 'superadmin' ? 'bg-purple-100 text-purple-800' :
                       'bg-gray-100 text-gray-800'
@@ -101,29 +100,42 @@ export const MembersTable: React.FC<MembersTableProps> = ({
                         onCheckedChange={(checked) => onToggleActive(member.id, checked)}
                         disabled={member.id === profile?.id}
                       />
-                      <span className="text-sm">
-                        {member.is_active ? 'Activo' : 'Inactivo'}
+                      <span className={`inline-flex items-center gap-1 text-sm ${member.is_active ? 'text-green-600' : 'text-red-600'}`}>
+                        {member.is_active ? (
+                          <>
+                            <CheckCircle2 className="h-4 w-4" />
+                            Activo
+                          </>
+                        ) : (
+                          <>
+                            <XCircle className="h-4 w-4" />
+                            Inactivo
+                          </>
+                        )}
                       </span>
                     </div>
                   </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-2">
                       <Button 
-                        variant="outline" 
+                        variant="ghost" 
                         size="sm"
                         onClick={() => {
                           setEditingMember(member);
                           setIsEditDialogOpen(true);
                         }}
+                        className="h-8 w-8 p-0"
+                        title="Editar miembro"
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
                       {member.id !== profile?.id && (
                         <Button 
-                          variant="outline" 
+                          variant="ghost" 
                           size="sm" 
                           onClick={() => onDeleteMember(member.id)}
-                          className="text-red-600 hover:text-red-700"
+                          className="h-8 w-8 p-0 text-red-500 hover:text-red-600"
+                          title="Eliminar miembro"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

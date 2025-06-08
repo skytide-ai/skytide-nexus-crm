@@ -7,6 +7,7 @@ import {
   Clock,
   UserCheck,
   MessageSquare,
+  Globe,
 } from "lucide-react"
 
 import {
@@ -21,7 +22,6 @@ import {
 } from "@/components/ui/sidebar"
 import { useAuth } from "@/contexts/AuthContext"
 import { Link, useLocation } from "react-router-dom"
-import logo from "@/assets/skytide-logo.png"
 
 const menuItems = [
   {
@@ -62,17 +62,18 @@ const menuItems = [
   },
   // La sección de Citas ha sido eliminada
   {
+    title: "Chat",
+    url: "/chat",
+    icon: MessageSquare,
+    roles: ["admin", "member", "superadmin"],
+  },
+  {
     title: "Configuración",
     url: "/settings",
     icon: Settings,
     roles: ["admin", "superadmin"],
   },
-  {
-    title: "WhatsApp",
-    url: "/admin/whatsapp",
-    icon: MessageSquare,
-    roles: ["admin", "superadmin"],
-  },
+
 ]
 
 export function AppSidebar() {
@@ -87,9 +88,6 @@ export function AppSidebar() {
 
   return (
     <Sidebar>
-      <div className="flex justify-center p-4 border-b border-border">
-        <img src={logo} alt="Skytide" className="h-8" />
-      </div>
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Menú Principal</SidebarGroupLabel>
@@ -108,6 +106,19 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+              {profile?.role === 'superadmin' && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={location.pathname === '/administration'}
+                  >
+                    <Link to="/administration">
+                      <Globe />
+                      <span>Administración</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

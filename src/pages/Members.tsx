@@ -2,7 +2,8 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent } from '@/components/ui/card';
-import { Mail } from 'lucide-react';
+import { Users, UserPlus, Mail, Search } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { useMembers } from '@/hooks/useMembers';
 import { InviteMemberDialog } from '@/components/members/InviteMemberDialog';
 import { SearchMembers } from '@/components/members/SearchMembers';
@@ -54,12 +55,21 @@ export default function Members() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      {/* Header: Title, Badge, Description, and Invite Button */}
+      <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Gestión de Miembros</h1>
-          <p className="text-gray-600">Administra los miembros de tu organización</p>
+          <div className="flex items-center gap-2">
+            <h1 className="text-3xl font-bold text-gray-900">Gestión de Miembros</h1>
+            <Badge className="bg-indigo-100 text-indigo-700 flex items-center gap-1 px-2 py-1 text-sm">
+              <Users className="h-3.5 w-3.5" />
+              <span className="font-semibold">{members.length}</span>
+            </Badge>
+          </div>
+          <p className="text-gray-600 mt-1">
+            Administra los miembros de tu organización
+          </p>
         </div>
-        
+
         <InviteMemberDialog
           onInvite={(formData) => inviteMemberMutation.mutate(formData)}
           isLoading={inviteMemberMutation.isPending}
