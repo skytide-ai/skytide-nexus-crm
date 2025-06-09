@@ -53,9 +53,8 @@ export default function Auth() {
 
     const { error } = await signIn(loginForm.email, loginForm.password);
     
-    if (!error) {
-      navigate(from, { replace: true });
-    }
+    // No navegamos aquí, dejamos que el useEffect maneje la navegación
+    // cuando el estado de usuario se actualice
     
     setIsLoading(false);
   };

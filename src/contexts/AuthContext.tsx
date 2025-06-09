@@ -57,6 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
+      setLoading(true); // Mantenemos loading true mientras cargamos el perfil
       setProfileLoading(true);
       console.log('Fetching profile for user:', userId);
       
@@ -114,7 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error('Error in fetchUserProfile:', error);
     } finally {
       setProfileLoading(false);
-      setLoading(false);
+      setLoading(false); // Solo establecemos loading en false cuando todo ha terminado
     }
   };
 
@@ -140,7 +141,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } else {
           setProfile(null);
           setOrganization(null);
-          setLoading(false);
+          setLoading(false); // Establecer loading en false cuando no hay sesión
         }
       }
     );
@@ -149,20 +150,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const initializeAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (!mounted) return;
-
-        console.log('Initial session:', session?.user?.id);
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
+        if (session) {
+          setSession(session);
+          setUser(session.user);
           await fetchUserProfile(session.user.id);
-        } else {
-          setLoading(false);
         }
       } catch (error) {
-        console.error('Error initializing auth:', error);
-        setLoading(false);
+        console.error('Error in initializeAuth:', error);
+        setLoading(false); // Establecer loading en false en caso de error
+      } finally {
+        if (!session && mounted) {
+          setLoading(false); // Solo establecer loading en false si no hay sesión
+        }
       }
     };
 
@@ -215,6 +214,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
+    setLoading(true); // Establecer loading al inicio del proceso de login
     try {
       const { error } = await supabase.auth.signInWithPassword({
         email,
@@ -227,11 +227,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           description: error.message,
           variant: "destructive",
         });
+        setLoading(false); // Establecer loading en false si hay error
       }
 
       return { error };
     } catch (error: any) {
       console.error('Error in signIn:', error);
+      setLoading(false); // Establecer loading en false si hay excepción
       return { error };
     }
   };
