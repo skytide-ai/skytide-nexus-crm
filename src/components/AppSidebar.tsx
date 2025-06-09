@@ -7,6 +7,7 @@ import {
   Clock,
   UserCheck,
   MessageSquare,
+  Globe,
 } from "lucide-react"
 
 import {
@@ -61,17 +62,18 @@ const menuItems = [
   },
   // La sección de Citas ha sido eliminada
   {
+    title: "Chat",
+    url: "/chat",
+    icon: MessageSquare,
+    roles: ["admin", "member", "superadmin"],
+  },
+  {
     title: "Configuración",
     url: "/settings",
     icon: Settings,
     roles: ["admin", "superadmin"],
   },
-  {
-    title: "WhatsApp",
-    url: "/admin/whatsapp",
-    icon: MessageSquare,
-    roles: ["admin", "superadmin"],
-  },
+
 ]
 
 export function AppSidebar() {
@@ -104,6 +106,19 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+              {profile?.role === 'superadmin' && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={location.pathname === '/administration'}
+                  >
+                    <Link to="/administration">
+                      <Globe />
+                      <span>Administración</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

@@ -95,7 +95,7 @@ export function WeeklyAvailability({
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 mb-2">
               <Clock className="h-5 w-5" />
               {title}
             </CardTitle>
@@ -201,22 +201,22 @@ export function WeeklyAvailability({
             const daySlots = availabilityByDay[day.value] || [];
             
             return (
-              <div key={day.value} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div key={day.value} className="p-4 bg-slate-50 rounded-lg shadow-sm">
                 <div className="flex-1">
-                  <h4 className="font-medium text-gray-900">{day.label}</h4>
-                  <div className="mt-1 space-y-1">
+                  <h4 className="font-semibold text-slate-800 text-md mb-1">{day.label}</h4>
+                  <div className="mt-1 space-y-0.5">
                     {daySlots.length === 0 ? (
-                      <Badge variant="secondary">Sin horario definido</Badge>
+                      <p className="text-sm text-slate-500 italic">Sin horario definido</p>
                     ) : (
                       daySlots.map((slot) => (
-                        <div key={slot.id} className="flex items-center gap-2 flex-wrap">
+                        <div key={slot.id} className="flex items-center justify-between w-full py-1">
                           {slot.is_available ? (
                             <>
-                              <Badge variant="default" className="bg-green-500">
+                              <Badge variant="default" className="bg-green-100 text-green-700 border border-green-200 hover:bg-green-200 text-xs px-2 py-1">
                                 {formatTime(slot.start_time)} - {formatTime(slot.end_time)}
                               </Badge>
                               {slot.break_start_time && slot.break_end_time && (
-                                <Badge variant="outline" className="flex items-center gap-1">
+                                <Badge variant="outline" className="flex items-center gap-1 text-xs px-2 py-1 border-slate-300 text-slate-600">
                                   <Coffee className="h-3 w-3" />
                                   {formatTime(slot.break_start_time)} - {formatTime(slot.break_end_time)}
                                 </Badge>
@@ -228,9 +228,9 @@ export function WeeklyAvailability({
                           {canEdit && (
                             <Button
                               variant="ghost"
-                              size="sm"
+                              size="icon"
                               onClick={() => onDelete(slot.id)}
-                              className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                              className="h-7 w-7 text-red-500 hover:bg-red-100 hover:text-red-700"
                             >
                               <Trash2 className="h-3 w-3" />
                             </Button>

@@ -6,11 +6,11 @@ import { Loader2 } from 'lucide-react';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  requiredRole?: 'admin' | 'superadmin';
+  allowedRoles?: string[];
 }
 
-export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
-  const { user, profile, loading, isAdmin, isSuperAdmin } = useAuth();
+export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
+  const { user, profile, loading } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -25,23 +25,17 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
-  if (requiredRole === 'superadmin' && !isSuperAdmin) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Acceso Denegado</h2>
-          <p className="text-gray-600">No tienes permisos de super administrador para acceder a esta página.</p>
-        </div>
-      </div>
-    );
+  if (!profile) {
+    return <Navigate to="/auth" />;
   }
 
-  if (requiredRole === 'admin' && !isAdmin && !isSuperAdmin) {
+  // Si se especifican roles permitidos, verificar que el usuario tenga uno de ellos
+  if (allowedRoles && !allowedRoles.includes(profile.role)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Acceso Denegado</h2>
-          <p className="text-gray-600">No tienes permisos de administrador para acceder a esta página.</p>
+          <p className="text-gray-600">No tienes los permisos necesarios para acceder a esta página.</p>
         </div>
       </div>
     );

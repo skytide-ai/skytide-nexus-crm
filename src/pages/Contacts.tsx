@@ -43,24 +43,25 @@ export default function Contacts() {
 
   return (
     <div className="space-y-6">
-      {/* Header with Title and Badge */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h1 className="text-3xl font-bold text-gray-900">Contactos</h1>
-          <Badge variant="secondary" className="flex items-center gap-1 px-3 py-1">
-            <Users className="h-4 w-4" />
-            <span className="font-semibold">{contacts.length}</span>
-          </Badge>
+      {/* Header: Title, Description, and New Contact Button */}
+      <div className="flex items-start justify-between">
+        <div>
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold text-gray-900">Contactos</h1>
+            <Badge variant="secondary" className="flex items-center gap-1 px-3 py-1">
+              <Users className="h-4 w-4" />
+              <span className="font-semibold">{contacts.length}</span>
+            </Badge>
+          </div>
+          <p className="text-gray-600 mt-1">
+            Gestiona tu base de datos de contactos y clientes
+          </p>
         </div>
         <Button onClick={() => setShowCreateDialog(true)} className="flex items-center gap-2">
           <Plus className="h-4 w-4" />
           Nuevo Contacto
         </Button>
       </div>
-
-      <p className="text-gray-600 -mt-4">
-        Gestiona tu base de datos de contactos y clientes
-      </p>
 
       {/* Search */}
       <Card>
@@ -101,7 +102,7 @@ export default function Contacts() {
             </div>
           ) : (
             <Table>
-              <TableHeader>
+              <TableHeader className="bg-slate-50">
                 <TableRow>
                   <TableHead>Nombre</TableHead>
                   <TableHead>Teléfono</TableHead>
@@ -114,10 +115,10 @@ export default function Contacts() {
               </TableHeader>
               <TableBody>
                 {filteredContacts.map((contact) => (
-                  <TableRow key={contact.id} className="hover:bg-gray-50">
+                  <TableRow key={contact.id} className="hover:bg-slate-50/50">
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
+                        <div className="w-8 h-8 bg-indigo-500 rounded-full flex items-center justify-center text-white text-sm font-semibold">
                           {contact.first_name[0]}{contact.last_name[0]}
                         </div>
                         <div>
@@ -130,14 +131,14 @@ export default function Contacts() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Phone className="h-4 w-4 text-gray-400" />
+                        <Phone className="h-4 w-4 text-slate-500" />
                         <span>{contact.country_code} {contact.phone}</span>
                       </div>
                     </TableCell>
                     <TableCell>
                       {contact.email ? (
                         <div className="flex items-center gap-2">
-                          <Mail className="h-4 w-4 text-gray-400" />
+                          <Mail className="h-4 w-4 text-slate-500" />
                           <span className="truncate max-w-[200px]">{contact.email}</span>
                         </div>
                       ) : (
@@ -147,7 +148,7 @@ export default function Contacts() {
                     <TableCell>
                       {contact.city ? (
                         <div className="flex items-center gap-2">
-                          <MapPin className="h-4 w-4 text-gray-400" />
+                          <MapPin className="h-4 w-4 text-slate-500" />
                           <span>{contact.city}</span>
                         </div>
                       ) : (
@@ -165,7 +166,7 @@ export default function Contacts() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <Calendar className="h-4 w-4" />
+                        <Calendar className="h-4 w-4 text-slate-500" />
                         <span>{formatDate(contact.created_at)}</span>
                       </div>
                     </TableCell>
