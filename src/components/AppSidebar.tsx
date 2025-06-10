@@ -8,6 +8,7 @@ import {
   UserCheck,
   MessageSquare,
   Globe,
+  Tags,
 } from "lucide-react"
 
 import {
@@ -61,6 +62,12 @@ const menuItems = [
     roles: ["admin", "member", "superadmin"],
   },
   // La sección de Citas ha sido eliminada
+  {
+    title: "Tags",
+    url: "/tags",
+    icon: Tags,
+    roles: ["admin", "superadmin"],
+  },
   {
     title: "Chat",
     url: "/chat",

@@ -3,6 +3,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { ContactTags } from '@/components/contacts/ContactTags';
+import { TagsFilter } from '@/components/contacts/TagsFilter';
+import { useContactsByTags } from '@/hooks/useContactsByTags';
 import { Plus, Search, Users, Phone, Mail, MapPin, Calendar, Eye, Edit, Trash2 } from 'lucide-react';
 import { useContacts } from '@/hooks/useContacts';
 import { CreateContactDialog } from '@/components/contacts/CreateContactDialog';
@@ -13,12 +16,18 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import type { Contact } from '@/types/contact';
 
 export default function Contacts() {
-  const { data: contacts = [], isLoading } = useContacts();
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [contactToEdit, setContactToEdit] = useState<Contact | null>(null);
   const [contactToDelete, setContactToDelete] = useState<Contact | null>(null);
+
+  const { data: allContacts = [], isLoading: isLoadingContacts } = useContacts();
+  const { data: tagFilteredContacts = [], isLoading: isLoadingTagContacts } = useContactsByTags(selectedTagIds);
+
+  const contacts = selectedTagIds.length > 0 ? tagFilteredContacts : allContacts;
+  const isLoading = isLoadingContacts || isLoadingTagContacts;
 
   const filteredContacts = contacts.filter(contact =>
     `${contact.first_name} ${contact.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -66,13 +75,19 @@ export default function Contacts() {
       {/* Search */}
       <Card>
         <CardContent className="p-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              placeholder="Buscar por nombre, teléfono o email..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
+          <div className="flex gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                placeholder="Buscar por nombre, teléfono o email..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <TagsFilter
+              selectedTagIds={selectedTagIds}
+              onTagsChange={setSelectedTagIds}
             />
           </div>
         </CardContent>
@@ -108,9 +123,10 @@ export default function Contacts() {
                   <TableHead>Teléfono</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Ciudad</TableHead>
+                  <TableHead>Tags</TableHead>
                   <TableHead>Documento</TableHead>
-                  <TableHead>Fecha de Registro</TableHead>
-                  <TableHead className="w-[100px]">Acciones</TableHead>
+                  <TableHead>Creado</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -154,6 +170,9 @@ export default function Contacts() {
                       ) : (
                         <span className="text-gray-400">-</span>
                       )}
+                    </TableCell>
+                    <TableCell>
+                      <ContactTags contactId={contact.id} />
                     </TableCell>
                     <TableCell>
                       {contact.document_type && contact.document_number ? (

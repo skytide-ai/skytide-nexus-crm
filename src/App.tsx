@@ -18,6 +18,7 @@ import NotFound from '@/pages/NotFound';
 import SystemAdmin from '@/pages/SystemAdmin';
 import ChatPage from '@/pages/Chat';
 import Administration from '@/pages/Administration';
+import Tags from '@/pages/Tags';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -69,6 +70,7 @@ function App() {
                       <Route path="/contacts" element={<Contacts />} />
                       <Route path="/calendar" element={<Calendar />} />
                       <Route path="/chat" element={<ChatPage />} />
+                      <Route path="/tags" element={<Tags />} />
                       <Route path="*" element={<NotFound />} />
                     </Routes>
                   </Layout>

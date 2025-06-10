@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { TagsSelect } from './TagsSelect';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useUpdateContact } from '@/hooks/useContacts';
 import PhoneInput from 'react-phone-number-input';
@@ -220,6 +221,12 @@ export function EditContactDialog({ contact, open, onOpenChange }: EditContactDi
                 onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
               />
             </div>
+          </div>
+
+          {/* Tags */}
+          <div className="space-y-2">
+            <Label>Tags</Label>
+            <TagsSelect contactId={contact.id} />
           </div>
 
           {/* Documento */}
