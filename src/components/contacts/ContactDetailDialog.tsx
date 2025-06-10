@@ -15,7 +15,7 @@ import { ContactNotes } from './ContactNotes';
 import { ContactFiles } from './ContactFiles';
 import { ContactAppointments } from './ContactAppointments';
 import { CreateAppointmentDialog } from './CreateAppointmentDialog';
-import { EditContactDialog } from './EditContactDialog';
+import { ContactDialog } from './ContactDialog';
 
 interface ContactDetailDialogProps {
   contact: Contact;
@@ -195,7 +195,7 @@ export function ContactDetailDialog({ contact, open, onOpenChange }: ContactDeta
         onOpenChange={setShowCreateAppointment}
       />
 
-      <EditContactDialog
+      <ContactDialog
         contact={contact}
         open={showEditContact}
         onOpenChange={setShowEditContact}

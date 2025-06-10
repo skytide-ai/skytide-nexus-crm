@@ -3,22 +3,29 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { ContactTags } from '@/components/contacts/ContactTags';
+import { TagsFilter } from '@/components/contacts/TagsFilter';
+import { useContactsByTags } from '@/hooks/useContactsByTags';
 import { Plus, Search, Users, Phone, Mail, MapPin, Calendar, Eye, Edit, Trash2 } from 'lucide-react';
 import { useContacts } from '@/hooks/useContacts';
-import { CreateContactDialog } from '@/components/contacts/CreateContactDialog';
-import { ContactDetailDialog } from '@/components/contacts/ContactDetailDialog';
-import { EditContactDialog } from '@/components/contacts/EditContactDialog';
+import { ContactDialog } from '@/components/contacts/ContactDialog';
 import { DeleteContactDialog } from '@/components/contacts/DeleteContactDialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { Contact } from '@/types/contact';
 
 export default function Contacts() {
-  const { data: contacts = [], isLoading } = useContacts();
   const [searchTerm, setSearchTerm] = useState('');
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
-  const [contactToEdit, setContactToEdit] = useState<Contact | null>(null);
+  const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [contactToDelete, setContactToDelete] = useState<Contact | null>(null);
+
+  const { data: allContacts = [], isLoading: isLoadingContacts } = useContacts();
+  const { data: tagFilteredContacts = [], isLoading: isLoadingTagContacts } = useContactsByTags(selectedTagIds);
+
+  const contacts = selectedTagIds.length > 0 ? tagFilteredContacts : allContacts;
+  const isLoading = isLoadingContacts || isLoadingTagContacts;
 
   const filteredContacts = contacts.filter(contact =>
     `${contact.first_name} ${contact.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -57,7 +64,7 @@ export default function Contacts() {
             Gestiona tu base de datos de contactos y clientes
           </p>
         </div>
-        <Button onClick={() => setShowCreateDialog(true)} className="flex items-center gap-2">
+        <Button onClick={() => setIsCreateOpen(true)} className="flex items-center gap-2">
           <Plus className="h-4 w-4" />
           Nuevo Contacto
         </Button>
@@ -66,13 +73,19 @@ export default function Contacts() {
       {/* Search */}
       <Card>
         <CardContent className="p-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              placeholder="Buscar por nombre, teléfono o email..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
+          <div className="flex gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                placeholder="Buscar por nombre, teléfono o email..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <TagsFilter
+              selectedTagIds={selectedTagIds}
+              onTagsChange={setSelectedTagIds}
             />
           </div>
         </CardContent>
@@ -94,7 +107,7 @@ export default function Contacts() {
                 }
               </p>
               {!searchTerm && (
-                <Button onClick={() => setShowCreateDialog(true)}>
+                <Button onClick={() => setIsCreateOpen(true)}>
                   <Plus className="h-4 w-4 mr-2" />
                   Crear Primer Contacto
                 </Button>
@@ -108,9 +121,10 @@ export default function Contacts() {
                   <TableHead>Teléfono</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Ciudad</TableHead>
+                  <TableHead>Tags</TableHead>
                   <TableHead>Documento</TableHead>
-                  <TableHead>Fecha de Registro</TableHead>
-                  <TableHead className="w-[100px]">Acciones</TableHead>
+                  <TableHead>Creado</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -156,6 +170,9 @@ export default function Contacts() {
                       )}
                     </TableCell>
                     <TableCell>
+                      <ContactTags contactId={contact.id} />
+                    </TableCell>
+                    <TableCell>
                       {contact.document_type && contact.document_number ? (
                         <Badge variant="secondary" className="text-xs">
                           {contact.document_type}: {contact.document_number}
@@ -184,7 +201,7 @@ export default function Contacts() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => setContactToEdit(contact)}
+                          onClick={() => setEditingContact(contact)}
                           className="h-8 w-8 p-0"
                           title="Editar contacto"
                         >
@@ -210,24 +227,24 @@ export default function Contacts() {
       </Card>
 
       {/* Dialogs */}
-      <CreateContactDialog
-        open={showCreateDialog}
-        onOpenChange={setShowCreateDialog}
+      <ContactDialog
+        open={isCreateOpen}
+        onOpenChange={setIsCreateOpen}
       />
 
       {selectedContact && (
-        <ContactDetailDialog
+        <ContactDialog
           contact={selectedContact}
           open={!!selectedContact}
           onOpenChange={(open) => !open && setSelectedContact(null)}
         />
       )}
 
-      {contactToEdit && (
-        <EditContactDialog
-          contact={contactToEdit}
-          open={!!contactToEdit}
-          onOpenChange={(open) => !open && setContactToEdit(null)}
+      {editingContact && (
+        <ContactDialog
+          contact={editingContact}
+          open={!!editingContact}
+          onOpenChange={(open) => !open && setEditingContact(null)}
         />
       )}
 
