@@ -20,7 +20,7 @@ export function useFunnels() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('funnels')
-        .select('*')
+        .select('*, funnel_stages(*), funnel_contacts(*)')
         .order('created_at', { ascending: false });
 
       if (error) {

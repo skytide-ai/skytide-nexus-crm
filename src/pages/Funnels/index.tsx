@@ -1,14 +1,8 @@
 import React, { useState } from 'react';
 import { useFunnels } from '@/hooks/useFunnels';
 import { Button } from '@/components/ui/button';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { 
   Dialog, 
   DialogContent, 
@@ -19,7 +13,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Plus, MoreHorizontal, Trash2, Pencil, Eye } from 'lucide-react';
+import { Loader2, Plus, MoreHorizontal, Trash2, Pencil, Eye, Users, Layers } from 'lucide-react';
 import { Funnel, CreateFunnelForm } from '@/types/funnel';
 import { Link } from 'react-router-dom';
 import { 
@@ -65,7 +59,7 @@ export default function FunnelsPage() {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-6 max-w-[1400px] mx-auto">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Embudos de Venta</h1>
         <Dialog open={isCreateOpen} onOpenChange={handleOpenChange}>
@@ -106,39 +100,85 @@ export default function FunnelsPage() {
       </div>
 
       {isLoading ? (
-        <div className="flex justify-center items-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(3)].map((_, i) => (
+            <Card key={i}>
+              <CardHeader>
+                <Skeleton className="h-6 w-3/4" />
+                <Skeleton className="h-4 w-full mt-2" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-4 w-1/2" />
+              </CardContent>
+              <CardFooter className="flex justify-end">
+                <Skeleton className="h-8 w-8 rounded-full" />
+              </CardFooter>
+            </Card>
+          ))}
         </div>
       ) : funnels.length === 0 ? (
-        <p>No se han creado embudos todavía.</p>
+        <div className="text-center py-16 border-2 border-dashed rounded-lg bg-muted/5">
+          <h2 className="text-xl font-semibold">No has creado ningún embudo</h2>
+          <p className="text-muted-foreground mt-2 mb-4">Empieza a organizar tus ventas creando tu primer embudo.</p>
+          <Button onClick={() => setIsCreateOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" /> Crear Embudo
+          </Button>
+        </div>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nombre</TableHead>
-              <TableHead>Descripción</TableHead>
-              <TableHead className="text-right">Acciones</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {funnels.map((funnel) => (
-              <TableRow key={funnel.id}>
-                <TableCell className="font-medium">{funnel.name}</TableCell>
-                <TableCell>{funnel.description}</TableCell>
-                <TableCell className="text-right">
+        <div className="grid grid-cols-1 gap-4">
+          {funnels.map((funnel) => (
+            <Card key={funnel.id} className="group hover:shadow-lg transition-all duration-200 border-l-4" style={{ borderLeftColor: funnel.funnel_stages?.[0]?.color || '#e2e8f0' }}>
+              <div className="flex items-start p-6">
+                <div className="flex-grow">
+                  <div className="flex items-center gap-4 mb-2">
+                    <h3 className="text-xl font-semibold group-hover:text-primary transition-colors">{funnel.name}</h3>
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <span className="flex items-center">
+                        <Users className="w-4 h-4 mr-1.5" />
+                        {funnel.funnel_contacts?.length || 0}
+                      </span>
+                      <span className="flex items-center">
+                        <Layers className="w-4 h-4 mr-1.5" />
+                        {funnel.funnel_stages?.length || 0}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-muted-foreground mb-4">{funnel.description || 'Sin descripción'}</p>
+                  <div className="flex gap-2">
+                    {funnel.funnel_stages?.slice(0, 3).map((stage) => (
+                      <div 
+                        key={stage.id} 
+                        className="px-2 py-1 rounded text-xs" 
+                        style={{ 
+                          backgroundColor: `${stage.color}15`,
+                          color: stage.color
+                        }}
+                      >
+                        {stage.name}
+                      </div>
+                    ))}
+                    {(funnel.funnel_stages?.length || 0) > 3 && (
+                      <div className="px-2 py-1 rounded text-xs bg-muted text-muted-foreground">
+                        +{(funnel.funnel_stages?.length || 0) - 3} más
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 ml-4">
+                  <Link to={`/funnels/${funnel.id}`}>
+                    <Button variant="outline" size="sm" className="gap-2">
+                      <Eye className="w-4 h-4" />
+                      Ver Embudo
+                    </Button>
+                  </Link>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="h-8 w-8 p-0">
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
                         <span className="sr-only">Abrir menú</span>
-                        <MoreHorizontal className="h-4 w-4" />
+                        <MoreHorizontal className="w-4 h-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem asChild>
-                        <Link to={`/funnels/${funnel.id}`} className="flex items-center w-full cursor-pointer">
-                           <Eye className="mr-2 h-4 w-4" /> Ver
-                        </Link>
-                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleEditClick(funnel)} className="cursor-pointer">
                         <Pencil className="mr-2 h-4 w-4" /> Editar
                       </DropdownMenuItem>
@@ -147,11 +187,11 @@ export default function FunnelsPage() {
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
       )}
     </div>
   );

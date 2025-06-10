@@ -8,9 +8,7 @@ import { TagsFilter } from '@/components/contacts/TagsFilter';
 import { useContactsByTags } from '@/hooks/useContactsByTags';
 import { Plus, Search, Users, Phone, Mail, MapPin, Calendar, Eye, Edit, Trash2 } from 'lucide-react';
 import { useContacts } from '@/hooks/useContacts';
-import { CreateContactDialog } from '@/components/contacts/CreateContactDialog';
-import { ContactDetailDialog } from '@/components/contacts/ContactDetailDialog';
-import { EditContactDialog } from '@/components/contacts/EditContactDialog';
+import { ContactDialog } from '@/components/contacts/ContactDialog';
 import { DeleteContactDialog } from '@/components/contacts/DeleteContactDialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { Contact } from '@/types/contact';
@@ -18,9 +16,9 @@ import type { Contact } from '@/types/contact';
 export default function Contacts() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
-  const [contactToEdit, setContactToEdit] = useState<Contact | null>(null);
+  const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [contactToDelete, setContactToDelete] = useState<Contact | null>(null);
 
   const { data: allContacts = [], isLoading: isLoadingContacts } = useContacts();
@@ -66,7 +64,7 @@ export default function Contacts() {
             Gestiona tu base de datos de contactos y clientes
           </p>
         </div>
-        <Button onClick={() => setShowCreateDialog(true)} className="flex items-center gap-2">
+        <Button onClick={() => setIsCreateOpen(true)} className="flex items-center gap-2">
           <Plus className="h-4 w-4" />
           Nuevo Contacto
         </Button>
@@ -109,7 +107,7 @@ export default function Contacts() {
                 }
               </p>
               {!searchTerm && (
-                <Button onClick={() => setShowCreateDialog(true)}>
+                <Button onClick={() => setIsCreateOpen(true)}>
                   <Plus className="h-4 w-4 mr-2" />
                   Crear Primer Contacto
                 </Button>
@@ -203,7 +201,7 @@ export default function Contacts() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => setContactToEdit(contact)}
+                          onClick={() => setEditingContact(contact)}
                           className="h-8 w-8 p-0"
                           title="Editar contacto"
                         >
@@ -229,24 +227,24 @@ export default function Contacts() {
       </Card>
 
       {/* Dialogs */}
-      <CreateContactDialog
-        open={showCreateDialog}
-        onOpenChange={setShowCreateDialog}
+      <ContactDialog
+        open={isCreateOpen}
+        onOpenChange={setIsCreateOpen}
       />
 
       {selectedContact && (
-        <ContactDetailDialog
+        <ContactDialog
           contact={selectedContact}
           open={!!selectedContact}
           onOpenChange={(open) => !open && setSelectedContact(null)}
         />
       )}
 
-      {contactToEdit && (
-        <EditContactDialog
-          contact={contactToEdit}
-          open={!!contactToEdit}
-          onOpenChange={(open) => !open && setContactToEdit(null)}
+      {editingContact && (
+        <ContactDialog
+          contact={editingContact}
+          open={!!editingContact}
+          onOpenChange={(open) => !open && setEditingContact(null)}
         />
       )}
 

@@ -101,31 +101,33 @@ export function useTags() {
 
   const deleteTag = useMutation({
     mutationFn: async (id: string) => {
-      console.log('Iniciando eliminación de tag:', id);
-      
       if (!profile?.organization_id) {
         throw new Error('No organization ID found');
       }
 
-      // Primero eliminamos todas las referencias en contact_tags
+      // Primero verificamos que el tag exista y pertenezca a la organización
+      const { data: tag, error: tagError } = await supabase
+        .from('tags')
+        .select('id')
+        .eq('id', id)
+        .eq('organization_id', profile.organization_id)
+        .single();
+
+      if (tagError || !tag) {
+        throw new Error('Tag not found or unauthorized');
+      }
+
+      // Eliminamos todas las referencias en contact_tags
       const { error: contactTagsError } = await supabase
         .from('contact_tags')
         .delete()
         .eq('tag_id', id);
 
       if (contactTagsError) {
-        console.error('Error eliminando contact_tags:', contactTagsError);
-        toast({
-          title: 'Error',
-          description: 'No se pudo eliminar las referencias de la etiqueta',
-          variant: 'destructive',
-        });
         throw contactTagsError;
       }
 
-      console.log('Referencias en contact_tags eliminadas correctamente');
-
-      // Luego eliminamos el tag que pertenezca a la organización
+      // Eliminamos el tag
       const { error } = await supabase
         .from('tags')
         .delete()
@@ -133,25 +135,20 @@ export function useTags() {
         .eq('organization_id', profile.organization_id);
 
       if (error) {
-        console.error('Error eliminando tag:', error);
-        toast({
-          title: 'Error',
-          description: 'No se pudo eliminar la etiqueta',
-          variant: 'destructive',
-        });
         throw error;
       }
 
-      console.log('Tag eliminado correctamente');
-
-      toast({
-        title: 'Éxito',
-        description: 'Etiqueta eliminada correctamente',
-      });
-
       return id;
     },
-    onSuccess: () => {
+    onError: (error) => {
+      console.error('Error al eliminar la etiqueta:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudo eliminar la etiqueta. Por favor, inténtalo de nuevo.',
+        variant: 'destructive',
+      });
+    },
+    onSuccess: (id) => {
       queryClient.invalidateQueries({ queryKey: ['tags'] });
     },
   });

@@ -7,6 +7,8 @@ export interface Funnel {
   organization_id: string;
   created_at: string;
   updated_at: string;
+  funnel_stages?: FunnelStage[];
+  funnel_contacts?: FunnelContact[];
 }
 
 export interface FunnelStage {

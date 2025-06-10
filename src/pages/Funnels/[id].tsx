@@ -112,19 +112,28 @@ export default function FunnelDetailPage() {
   }
 
   return (
-    <div className="p-6 h-full flex flex-col">
-      <div className="flex justify-between items-center mb-6">
+    <div className="container py-6 h-full flex flex-col max-w-[1400px] mx-auto">
+      <div className="flex justify-between items-start gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold">{funnel?.name}</h1>
-          <p className="text-muted-foreground">{funnel?.description}</p>
+          <h1 className="text-3xl font-bold tracking-tight mb-2">{funnel?.name}</h1>
+          <p className="text-muted-foreground text-lg">{funnel?.description || 'Sin descripción'}</p>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={() => setIsAddContactDialogOpen(true)} variant="outline">
-            <PlusCircle className="mr-2 h-4 w-4" />
+        <div className="flex gap-3 shrink-0">
+          <Button 
+            onClick={() => setIsAddContactDialogOpen(true)} 
+            variant="outline"
+            size="lg"
+            className="h-10"
+          >
+            <PlusCircle className="mr-2 h-5 w-5" />
             Agregar Contacto
           </Button>
-          <Button onClick={handleAddNewStage}>
-            <PlusCircle className="mr-2 h-4 w-4" />
+          <Button 
+            onClick={handleAddNewStage}
+            size="lg"
+            className="h-10"
+          >
+            <PlusCircle className="mr-2 h-5 w-5" />
             Crear Etapa
           </Button>
         </div>
@@ -132,7 +141,7 @@ export default function FunnelDetailPage() {
 
       <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd} collisionDetection={closestCenter}>
           {/* SortableContext para etapas eliminado ya que no se reordenan etapas */}
-          <div className="flex gap-4 overflow-x-auto flex-grow pb-4 h-full">
+          <div className="flex gap-4 overflow-x-auto flex-grow pb-6 h-full px-1">
           {typedStages.map((stage: FunnelStage) => (
             <FunnelStageColumn
               key={stage.id}
