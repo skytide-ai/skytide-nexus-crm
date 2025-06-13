@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Contact } from '@/types/chat';
 import { useUpdateChatIdentity } from '@/hooks/useChat';
+import { Link } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -75,7 +76,10 @@ export function LinkContactDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline">Vincular contacto</Button>
+        <Button variant="outline" size="sm" className="gap-1">
+          <Link className="h-4 w-4" />
+          <span>Vincular</span>
+        </Button>
       </DialogTrigger>
 
       <DialogContent className="max-w-2xl">
