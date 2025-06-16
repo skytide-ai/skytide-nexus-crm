@@ -3,22 +3,30 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Users, Phone, Mail, MapPin, Calendar, Eye, Edit, Trash2 } from 'lucide-react';
+import { ContactTags } from '@/components/contacts/ContactTags';
+import { TagsFilter } from '@/components/contacts/TagsFilter';
+import { useContactsByTags } from '@/hooks/useContactsByTags';
 import { useContacts } from '@/hooks/useContacts';
-import { CreateContactDialog } from '@/components/contacts/CreateContactDialog';
+import { ContactDialog } from '@/components/contacts/ContactDialog';
 import { ContactDetailDialog } from '@/components/contacts/ContactDetailDialog';
-import { EditContactDialog } from '@/components/contacts/EditContactDialog';
 import { DeleteContactDialog } from '@/components/contacts/DeleteContactDialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { Contact } from '@/types/contact';
+import { Plus, Search, Users, Phone, Mail, MapPin, Calendar, Eye, Edit, Trash2 } from 'lucide-react';
 
 export default function Contacts() {
-  const { data: contacts = [], isLoading } = useContacts();
   const [searchTerm, setSearchTerm] = useState('');
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
-  const [contactToEdit, setContactToEdit] = useState<Contact | null>(null);
+  const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [contactToDelete, setContactToDelete] = useState<Contact | null>(null);
+
+  const { data: allContacts = [], isLoading: isLoadingContacts } = useContacts();
+  const { data: tagFilteredContacts = [], isLoading: isLoadingTagContacts } = useContactsByTags(selectedTagIds);
+
+  const contacts = selectedTagIds.length > 0 ? tagFilteredContacts : allContacts;
+  const isLoading = isLoadingContacts || isLoadingTagContacts;
 
   const filteredContacts = contacts.filter(contact =>
     `${contact.first_name} ${contact.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -43,35 +51,42 @@ export default function Contacts() {
 
   return (
     <div className="space-y-6">
-      {/* Header with Title and Badge */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h1 className="text-3xl font-bold text-gray-900">Contactos</h1>
-          <Badge variant="secondary" className="flex items-center gap-1 px-3 py-1">
-            <Users className="h-4 w-4" />
-            <span className="font-semibold">{contacts.length}</span>
-          </Badge>
+      {/* Header: Title, Description, and New Contact Button */}
+      <div className="flex items-start justify-between">
+        <div>
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold text-gray-900">Contactos</h1>
+            <Badge variant="secondary" className="flex items-center gap-1 px-3 py-1">
+              <Users className="h-4 w-4" />
+              <span className="font-semibold">{contacts.length}</span>
+            </Badge>
+          </div>
+          <p className="text-gray-600 mt-1">
+            Gestiona tu base de datos de contactos y clientes
+          </p>
         </div>
-        <Button onClick={() => setShowCreateDialog(true)} className="flex items-center gap-2">
+        <Button onClick={() => setIsCreateOpen(true)} className="flex items-center gap-2">
           <Plus className="h-4 w-4" />
           Nuevo Contacto
         </Button>
       </div>
 
-      <p className="text-gray-600 -mt-4">
-        Gestiona tu base de datos de contactos y clientes
-      </p>
-
       {/* Search */}
       <Card>
         <CardContent className="p-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              placeholder="Buscar por nombre, teléfono o email..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
+          <div className="flex gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                placeholder="Buscar por nombre, teléfono o email..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <TagsFilter
+              selectedTagIds={selectedTagIds}
+              onTagsChange={setSelectedTagIds}
             />
           </div>
         </CardContent>
@@ -93,7 +108,7 @@ export default function Contacts() {
                 }
               </p>
               {!searchTerm && (
-                <Button onClick={() => setShowCreateDialog(true)}>
+                <Button onClick={() => setIsCreateOpen(true)}>
                   <Plus className="h-4 w-4 mr-2" />
                   Crear Primer Contacto
                 </Button>
@@ -101,23 +116,24 @@ export default function Contacts() {
             </div>
           ) : (
             <Table>
-              <TableHeader>
+              <TableHeader className="bg-slate-50">
                 <TableRow>
                   <TableHead>Nombre</TableHead>
                   <TableHead>Teléfono</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Ciudad</TableHead>
+                  <TableHead>Tags</TableHead>
                   <TableHead>Documento</TableHead>
-                  <TableHead>Fecha de Registro</TableHead>
-                  <TableHead className="w-[100px]">Acciones</TableHead>
+                  <TableHead>Creado</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredContacts.map((contact) => (
-                  <TableRow key={contact.id} className="hover:bg-gray-50">
+                  <TableRow key={contact.id} className="hover:bg-slate-50/50">
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
+                        <div className="w-8 h-8 bg-indigo-500 rounded-full flex items-center justify-center text-white text-sm font-semibold">
                           {contact.first_name[0]}{contact.last_name[0]}
                         </div>
                         <div>
@@ -130,14 +146,14 @@ export default function Contacts() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Phone className="h-4 w-4 text-gray-400" />
+                        <Phone className="h-4 w-4 text-slate-500" />
                         <span>{contact.country_code} {contact.phone}</span>
                       </div>
                     </TableCell>
                     <TableCell>
                       {contact.email ? (
                         <div className="flex items-center gap-2">
-                          <Mail className="h-4 w-4 text-gray-400" />
+                          <Mail className="h-4 w-4 text-slate-500" />
                           <span className="truncate max-w-[200px]">{contact.email}</span>
                         </div>
                       ) : (
@@ -147,12 +163,15 @@ export default function Contacts() {
                     <TableCell>
                       {contact.city ? (
                         <div className="flex items-center gap-2">
-                          <MapPin className="h-4 w-4 text-gray-400" />
+                          <MapPin className="h-4 w-4 text-slate-500" />
                           <span>{contact.city}</span>
                         </div>
                       ) : (
                         <span className="text-gray-400">-</span>
                       )}
+                    </TableCell>
+                    <TableCell>
+                      <ContactTags contactId={contact.id} />
                     </TableCell>
                     <TableCell>
                       {contact.document_type && contact.document_number ? (
@@ -165,7 +184,7 @@ export default function Contacts() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <Calendar className="h-4 w-4" />
+                        <Calendar className="h-4 w-4 text-slate-500" />
                         <span>{formatDate(contact.created_at)}</span>
                       </div>
                     </TableCell>
@@ -183,7 +202,7 @@ export default function Contacts() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => setContactToEdit(contact)}
+                          onClick={() => setEditingContact(contact)}
                           className="h-8 w-8 p-0"
                           title="Editar contacto"
                         >
@@ -209,9 +228,9 @@ export default function Contacts() {
       </Card>
 
       {/* Dialogs */}
-      <CreateContactDialog
-        open={showCreateDialog}
-        onOpenChange={setShowCreateDialog}
+      <ContactDialog
+        open={isCreateOpen}
+        onOpenChange={setIsCreateOpen}
       />
 
       {selectedContact && (
@@ -222,11 +241,11 @@ export default function Contacts() {
         />
       )}
 
-      {contactToEdit && (
-        <EditContactDialog
-          contact={contactToEdit}
-          open={!!contactToEdit}
-          onOpenChange={(open) => !open && setContactToEdit(null)}
+      {editingContact && (
+        <ContactDialog
+          contact={editingContact}
+          open={!!editingContact}
+          onOpenChange={(open) => !open && setEditingContact(null)}
         />
       )}
 

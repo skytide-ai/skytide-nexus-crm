@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useMembers } from '@/hooks/useMembers';
 import { useServices } from '@/hooks/useServices';
 import { useContacts } from '@/hooks/useContacts';
-import { useUpdateAppointment, useDeleteAppointment, AppointmentWithDetails } from '@/hooks/useAppointments';
+import { useUpdateAppointment, useDeleteAppointment, useUpdateAppointmentStatus, AppointmentWithDetails } from '@/hooks/useAppointments';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -27,6 +27,7 @@ export function EditAppointmentDialog({ open, onOpenChange, appointment }: EditA
   const { data: services = [] } = useServices();
   const { data: contacts = [] } = useContacts();
   const updateAppointment = useUpdateAppointment();
+  const updateStatus = useUpdateAppointmentStatus();
   const deleteAppointment = useDeleteAppointment();
 
   // Inicializar el formulario cuando se abre el diálogo con los datos de la cita
@@ -234,25 +235,45 @@ export function EditAppointmentDialog({ open, onOpenChange, appointment }: EditA
             </Select>
           </div>
 
-          <div>
+          <div className="space-y-2">
             <Label htmlFor="status">Estado</Label>
-            <Select
-              value={formData.status}
-              onValueChange={(value: any) => setFormData(prev => ({ ...prev, status: value }))}
-              required
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Seleccionar estado" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="programada">Programada</SelectItem>
-                <SelectItem value="confirmada">Confirmada</SelectItem>
-                <SelectItem value="en_curso">En curso</SelectItem>
-                <SelectItem value="completada">Completada</SelectItem>
-                <SelectItem value="cancelada">Cancelada</SelectItem>
-                <SelectItem value="no_asistio">No asistió</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <Select
+                  value={formData.status}
+                  onValueChange={(value: any) => setFormData(prev => ({ ...prev, status: value }))}
+                  required
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar estado" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="programada">Programada</SelectItem>
+                    <SelectItem value="confirmada">Confirmada</SelectItem>
+                    <SelectItem value="en_curso">En curso</SelectItem>
+                    <SelectItem value="completada">Completada</SelectItem>
+                    <SelectItem value="cancelada">Cancelada</SelectItem>
+                    <SelectItem value="no_asistio">No asistió</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button 
+                type="button" 
+                onClick={() => {
+                  if (appointment && formData.status) {
+                    updateStatus.mutate({
+                      id: appointment.id,
+                      status: formData.status
+                    });
+                  }
+                }}
+                disabled={updateStatus.isPending}
+                className="whitespace-nowrap"
+              >
+                {updateStatus.isPending ? 'Actualizando...' : 'Actualizar Estado'}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">Puedes actualizar solo el estado sin modificar otros campos usando el botón "Actualizar Estado"</p>
           </div>
 
           <div>

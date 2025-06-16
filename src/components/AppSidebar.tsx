@@ -7,6 +7,9 @@ import {
   Clock,
   UserCheck,
   MessageSquare,
+  Globe,
+  Tags,
+  Filter,
 } from "lucide-react"
 
 import {
@@ -21,6 +24,7 @@ import {
 } from "@/components/ui/sidebar"
 import { useAuth } from "@/contexts/AuthContext"
 import { Link, useLocation } from "react-router-dom"
+import skytideLogo from "@/assets/skytide-logo.png"
 
 const menuItems = [
   {
@@ -61,17 +65,30 @@ const menuItems = [
   },
   // La sección de Citas ha sido eliminada
   {
+    title: "Tags",
+    url: "/tags",
+    icon: Tags,
+    roles: ["admin", "superadmin"],
+  },
+  {
+    title: "Embudos",
+    url: "/funnels",
+    icon: Filter,
+    roles: ["admin", "superadmin"],
+  },
+  {
+    title: "Chat",
+    url: "/chat",
+    icon: MessageSquare,
+    roles: ["admin", "member", "superadmin"],
+  },
+  {
     title: "Configuración",
     url: "/settings",
     icon: Settings,
     roles: ["admin", "superadmin"],
   },
-  {
-    title: "WhatsApp",
-    url: "/admin/whatsapp",
-    icon: MessageSquare,
-    roles: ["admin", "superadmin"],
-  },
+
 ]
 
 export function AppSidebar() {
@@ -87,6 +104,13 @@ export function AppSidebar() {
   return (
     <Sidebar>
       <SidebarContent>
+        <div className="flex items-center justify-center pt-6 pb-4 px-6">
+          <img 
+            src={skytideLogo} 
+            alt="Skytide Logo" 
+            className="h-8 w-auto object-contain"
+          />
+        </div>
         <SidebarGroup>
           <SidebarGroupLabel>Menú Principal</SidebarGroupLabel>
           <SidebarGroupContent>
@@ -104,6 +128,19 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+              {profile?.role === 'superadmin' && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={location.pathname === '/administration'}
+                  >
+                    <Link to="/administration">
+                      <Globe />
+                      <span>Administración</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

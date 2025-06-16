@@ -96,6 +96,11 @@ export function useAppointments({ date, viewMode = 'agenda' }: UseAppointmentsOp
         }
       }
 
+      // Filtrar citas canceladas en vistas agenda y week, pero mostrarlas en vista lista
+      if (viewMode !== 'list') {
+        query = query.neq('status', 'cancelada');
+      }
+
       const { data, error } = await query.order('start_time', { ascending: true });
 
       if (error) {
@@ -425,7 +430,7 @@ export function useCreateAppointment() {
           .select('start_time, end_time')
           .eq('member_id', appointmentData.member_id)
           .eq('appointment_date', appointmentData.appointment_date)
-          .in('status', ['programada', 'confirmada', 'en_curso']);
+          .neq('status', 'cancelada');
 
         if (conflictError) {
           throw new Error('Error al verificar conflictos de horario.');
@@ -549,7 +554,8 @@ export function useUpdateAppointment() {
             .select('*')
             .eq('member_id', memberId)
             .eq('appointment_date', data.appointment_date || currentAppointment.appointment_date)
-            .neq('id', id);
+            .neq('id', id)
+            .neq('status', 'cancelada');
 
           const startTime = data.start_time || currentAppointment.start_time;
           const endTime = data.end_time || currentAppointment.end_time;
@@ -596,6 +602,48 @@ export function useUpdateAppointment() {
       toast({
         title: 'Error',
         description: error.message || 'No se pudo actualizar la cita. Inténtalo de nuevo.',
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+export function useUpdateAppointmentStatus() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: AppointmentWithDetails['status'] }) => {
+      // Actualizar solo el estado sin validaciones de fecha/hora
+      const { data: appointment, error } = await supabase
+        .from('appointments')
+        .update({ 
+          status, 
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating appointment status:', error);
+        throw error;
+      }
+
+      return appointment;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      toast({
+        title: 'Estado actualizado',
+        description: 'El estado de la cita ha sido actualizado exitosamente.',
+      });
+    },
+    onError: (error: any) => {
+      console.error('Appointment status update failed:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'No se pudo actualizar el estado de la cita. Inténtalo de nuevo.',
         variant: 'destructive',
       });
     },

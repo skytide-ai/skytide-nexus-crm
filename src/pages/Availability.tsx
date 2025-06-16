@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Clock, Calendar, Users, Building2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -169,45 +170,66 @@ export function Availability() {
         <TabsContent value="member" className="space-y-6">
           {/* Member Selection with Dropdown and Info */}
           {isAdmin && (
-            <div className="flex flex-col md:flex-row gap-4 mb-4">
-              <div className="w-full md:w-1/3">
-                <label htmlFor="member-select" className="block text-sm font-medium mb-2">Seleccionar Miembro</label>
-                <select
-                  id="member-select"
-                  className="w-full rounded-md border border-gray-300 py-2 px-3 text-sm"
-                  value={selectedMemberId}
-                  onChange={(e) => setSelectedMemberId(e.target.value)}
-                >
-                  {members?.map((member) => (
-                    <option key={member.id} value={member.id}>
-                      {member.first_name} {member.last_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
-              {/* Current Member Info - Inline */}
+            <>
+              <Card className="mb-6 bg-violet-50 border border-violet-200 rounded-xl shadow-sm">
+                <CardHeader className="flex flex-row items-start gap-4 space-y-0 pt-5 pb-4 px-5">
+                  <div className="p-2.5 bg-violet-100 rounded-lg mt-0.5">
+                    <Users className="h-5 w-5 text-violet-600" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg font-semibold text-gray-800">Seleccionar Miembro</CardTitle>
+                    <CardDescription className="text-sm text-gray-600 mt-1">
+                      Elige un miembro del equipo para gestionar su disponibilidad
+                    </CardDescription>
+                  </div>
+                </CardHeader>
+                <CardContent className="pb-5 px-5">
+                  <Select
+                    value={selectedMemberId}
+                    onValueChange={(value) => setSelectedMemberId(value === 'all' ? undefined : value)}
+                  >
+                    <SelectTrigger className="w-full bg-white border-gray-300 hover:border-gray-400 focus:ring-violet-500 text-gray-700">
+                      <SelectValue placeholder="Selecciona un miembro" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {members?.map((member) => (
+                        <SelectItem key={member.id} value={member.id}>
+                          {member.first_name} {member.last_name} - {member.email}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </CardContent>
+              </Card>
+
               {selectedMember && (
-                <div className="flex-1 flex items-center gap-3 p-2 bg-gray-50 rounded-md border border-gray-100">
-                  <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-                    <span className="text-sm font-semibold text-gray-700">
-                      {selectedMember.first_name[0]}{selectedMember.last_name[0]}
-                    </span>
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-medium text-gray-900">
-                        {selectedMember.first_name} {selectedMember.last_name}
-                      </h3>
-                      <Badge variant={selectedMember.is_active ? 'default' : 'secondary'} className="text-xs">
-                        {selectedMember.is_active ? 'Activo' : 'Inactivo'}
-                      </Badge>
+                <Card className="mb-6 bg-white border border-gray-200 rounded-xl shadow-sm">
+                  <CardContent className="p-4 flex items-center gap-4">
+                    <div className="w-10 h-10 bg-violet-100 rounded-full flex items-center justify-center shrink-0">
+                      <span className="text-base font-semibold text-violet-600">
+                        {selectedMember.first_name?.[0]?.toUpperCase()}{selectedMember.last_name?.[0]?.toUpperCase()}
+                      </span>
                     </div>
-                    <p className="text-xs text-gray-600">{selectedMember.email}</p>
-                  </div>
-                </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-gray-800 truncate">
+                          {selectedMember.first_name} {selectedMember.last_name}
+                        </h3>
+                        <span 
+                          className={`px-2 py-0.5 text-xs font-medium rounded-full whitespace-nowrap ${selectedMember.is_active 
+                              ? 'bg-green-100 text-green-700' 
+                              : 'bg-gray-100 text-gray-600'
+                          }`}
+                        >
+                          {selectedMember.is_active ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-500 truncate">{selectedMember.email}</p>
+                    </div>
+                  </CardContent>
+                </Card>
               )}
-            </div>
+            </>
           )}
 
           {/* Member Availability - Changed to grid layout */}

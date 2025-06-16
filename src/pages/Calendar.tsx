@@ -4,9 +4,41 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Calendar as CalendarIcon, Plus, List, Grid, ChevronLeft, ChevronRight } from 'lucide-react';
-import { format, addDays, subDays, startOfWeek, endOfWeek } from 'date-fns';
+import { Calendar as CalendarIcon, Plus, List, Grid, ChevronLeft, ChevronRight, Users, Check } from 'lucide-react';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+
+// Funciones de utilidad para manejar fechas
+const addDays = (date: Date, days: number): Date => {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+};
+
+const subDays = (date: Date, days: number): Date => {
+  const result = new Date(date);
+  result.setDate(result.getDate() - days);
+  return result;
+};
+
+const startOfWeek = (date: Date, options?: { locale: any }): Date => {
+  const result = new Date(date);
+  const day = result.getDay();
+  const diff = result.getDate() - day + (day === 0 ? -6 : 1); // ajustar cuando el día es domingo
+  result.setDate(diff);
+  result.setHours(0, 0, 0, 0);
+  return result;
+};
+
+const endOfWeek = (date: Date, options?: { locale: any }): Date => {
+  const result = new Date(date);
+  const day = result.getDay();
+  const diff = result.getDate() + (day === 0 ? 0 : 7 - day); // ajustar cuando el día es domingo
+  result.setDate(diff);
+  result.setHours(23, 59, 59, 999);
+  return result;
+};
 import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useAppointments } from '@/hooks/useAppointments';
@@ -69,44 +101,66 @@ export default function Calendar() {
 
   return (
     <div className="space-y-6">
-      {/* Header - Full Width */}
-      <div>
-        <div className="flex items-center gap-3 mb-2">
-          <div className="flex-1">
+      {/* Header: Title, Description, Badge, and View Mode Buttons */}
+      <div className="flex items-start justify-between">
+        {/* Left Side: Title, Badge, Description */}
+        <div>
+          <div className="flex items-center gap-2">
             <h1 className="text-3xl font-bold text-gray-900">Calendario</h1>
-            <p className="text-gray-600">
-              Gestiona las citas y agenda
-            </p>
-          </div>
-          <div className="flex items-center gap-4">
-            <Badge variant="secondary" className="flex items-center gap-1 px-3 py-1">
-              <CalendarIcon className="h-4 w-4" />
+            <Badge className="bg-indigo-100 text-indigo-700 flex items-center gap-1 px-2 py-1 text-sm">
+              <CalendarIcon className="h-3.5 w-3.5" />
               <span className="font-semibold">{filteredAppointments.length}</span>
             </Badge>
-            <div className="border rounded-lg p-1 flex gap-1">
-              <Button
-                variant={viewMode === 'agenda' ? 'secondary' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('agenda')}
-              >
-                Día
-              </Button>
-              <Button
-                variant={viewMode === 'week' ? 'secondary' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('week')}
-              >
-                Semana
-              </Button>
-              <Button
-                variant={viewMode === 'list' ? 'secondary' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('list')}
-              >
-                Lista
-              </Button>
-            </div>
           </div>
+          <p className="text-gray-600 mt-1">
+            Gestiona las citas y agenda
+          </p>
+        </div>
+
+        {/* Right Side: View Mode Buttons */}
+        <div className="border rounded-lg p-1 flex items-center gap-1 bg-white">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setViewMode('agenda')}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 text-sm",
+              viewMode === 'agenda' 
+                ? "bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
+                : "text-slate-600 hover:bg-slate-100"
+            )}
+          >
+            <Grid className="h-4 w-4" />
+            Día
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setViewMode('week')}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 text-sm",
+              viewMode === 'week' 
+                ? "bg-indigo-100 text-indigo-700 hover:bg-indigo-200" 
+                : "text-slate-600 hover:bg-slate-100"
+            )}
+          >
+            <CalendarIcon className="h-4 w-4" />
+            Semana
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setViewMode('list')}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 text-sm",
+              viewMode === 'list' 
+                ? "bg-indigo-100 text-indigo-700 hover:bg-indigo-200" 
+                : "text-slate-600 hover:bg-slate-100"
+            )}
+          >
+            <List className="h-4 w-4" />
+            Lista
+          </Button>
         </div>
       </div>
 
@@ -188,36 +242,52 @@ export default function Calendar() {
 
           {/* Member Filter - Different for each view */}
           {viewMode === 'agenda' ? (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium">Filtrar por Miembros</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center space-x-2 mb-2">
-                  <Checkbox
-                    id="selectAll"
-                    checked={selectedMembers.length === activeMembers.length}
-                    onCheckedChange={toggleAllMembers}
-                  />
-                  <label htmlFor="selectAll" className="text-sm">
-                    Seleccionar todos ({activeMembers.length})
-                  </label>
+            <Card className="overflow-hidden border-border/40 shadow-md hover:shadow-lg transition-shadow duration-200">
+              <CardHeader className="pb-3 bg-muted/30 border-b">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <Users className="h-4 w-4 text-primary" />
+                    Filtrar por Miembros
+                  </CardTitle>
+                  <Badge variant="outline" className="text-xs font-normal">
+                    {selectedMembers.length} de {activeMembers.length}
+                  </Badge>
                 </div>
-                <div className="space-y-2 max-h-48 overflow-y-auto">
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="p-3 border-b bg-muted/10 hover:bg-muted/20 transition-colors cursor-pointer" onClick={toggleAllMembers}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-5 h-5 rounded flex items-center justify-center ${selectedMembers.length === activeMembers.length ? 'bg-primary text-primary-foreground' : 'border border-muted-foreground/30'}`}>
+                        {selectedMembers.length === activeMembers.length && <Check className="h-3 w-3" />}
+                      </div>
+                      <span className="text-sm font-medium">Seleccionar todos</span>
+                    </div>
+                    <Badge variant="secondary" className="text-xs">{activeMembers.length}</Badge>
+                  </div>
+                </div>
+                <div className="divide-y max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent">
                   {activeMembers.map((member) => (
-                    <div key={member.id} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={member.id}
-                        checked={selectedMembers.includes(member.id)}
-                        onCheckedChange={() => toggleMember(member.id)}
-                      />
-                      <label htmlFor={member.id} className="text-sm">
-                        {member.first_name} {member.last_name}
-                      </label>
+                    <div 
+                      key={member.id} 
+                      className={`flex items-center justify-between p-2.5 hover:bg-muted/10 transition-colors cursor-pointer ${selectedMembers.includes(member.id) ? 'bg-primary/5' : ''}`}
+                      onClick={() => toggleMember(member.id)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className={`w-5 h-5 rounded flex items-center justify-center ${selectedMembers.includes(member.id) ? 'bg-primary text-primary-foreground' : 'border border-muted-foreground/30'}`}>
+                          {selectedMembers.includes(member.id) && <Check className="h-3 w-3" />}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-6 w-6 bg-muted">
+                            <AvatarFallback className="text-xs font-medium">{member.first_name.charAt(0)}{member.last_name.charAt(0)}</AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm">{member.first_name} {member.last_name}</span>
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
-                <div className="text-xs text-gray-500 pt-2 border-t">
+                <div className="text-xs text-gray-500 py-3 border-t text-center font-medium">
                   {selectedMembers.length} de {activeMembers.length} seleccionados
                 </div>
               </CardContent>

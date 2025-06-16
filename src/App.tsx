@@ -16,7 +16,12 @@ import AcceptInvitation from '@/pages/AcceptInvitation';
 import SetPassword from '@/pages/SetPassword';
 import NotFound from '@/pages/NotFound';
 import SystemAdmin from '@/pages/SystemAdmin';
-import AdminWhatsApp from '@/pages/AdminWhatsApp';
+import ChatPage from '@/pages/Chat';
+import Administration from '@/pages/Administration';
+import Tags from '@/pages/Tags';
+import Funnels from '@/pages/Funnels';
+import FunnelDetail from '@/pages/Funnels/[id]';
+import Settings from '@/pages/settings';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -37,7 +42,24 @@ function App() {
             <Route path="/accept-invitation" element={<AcceptInvitation />} />
             <Route path="/aceptar-invitacion" element={<AcceptInvitation />} />
             <Route path="/set-password" element={<SetPassword />} />
-            <Route path="/system-admin" element={<SystemAdmin />} />
+            <Route
+              path="/system-admin"
+              element={
+                <ProtectedRoute allowedRoles={['superadmin']}>
+                  <SystemAdmin />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/administration"
+              element={
+                <ProtectedRoute allowedRoles={['superadmin']}>
+                  <Layout>
+                    <Administration />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/*"
               element={
@@ -50,8 +72,11 @@ function App() {
                       <Route path="/availability" element={<Availability />} />
                       <Route path="/contacts" element={<Contacts />} />
                       <Route path="/calendar" element={<Calendar />} />
-                      <Route path="/admin/whatsapp" element={<AdminWhatsApp />} />
-                      <Route path="/admin/whatsapp/:phoneNumber" element={<AdminWhatsApp />} />
+                      <Route path="/chat" element={<ChatPage />} />
+                      <Route path="/tags" element={<Tags />} />
+                      <Route path="/funnels" element={<Funnels />} />
+                      <Route path="/funnels/:id" element={<FunnelDetail />} />
+                      <Route path="/settings" element={<Settings />} />
                       <Route path="*" element={<NotFound />} />
                     </Routes>
                   </Layout>
