@@ -10,6 +10,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tool
 import { useDashboardStats, useHistoricalStats } from '@/hooks/useDashboardStats';
 import { useDailyStats } from '@/hooks/useDailyStats';
 import { useState } from 'react';
+import { TestNotifications } from '@/components/TestNotifications';
 
 export function Dashboard() {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -43,6 +44,9 @@ export function Dashboard() {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* Componente de prueba de notificaciones */}
+      <TestNotifications />
+      
       {/* Header del Dashboard */}
       <div className="flex justify-between items-center">
         <div>

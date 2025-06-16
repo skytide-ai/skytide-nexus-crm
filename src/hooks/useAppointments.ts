@@ -296,7 +296,7 @@ export function useCreateAppointment() {
           .select('*')
           .eq('member_id', appointmentData.member_id)
           .eq('date', appointmentData.appointment_date)
-          .single();
+          .maybeSingle();
 
         if (specialDate) {
           if (!specialDate.is_available) {
@@ -359,7 +359,7 @@ export function useCreateAppointment() {
         .select('*')
         .eq('organization_id', profile.organization_id)
         .eq('date', appointmentData.appointment_date)
-        .single();
+        .maybeSingle();
 
       if (orgSpecialDate && !orgSpecialDate.is_available) {
         throw new Error('La organización no está disponible en esta fecha específica.');
