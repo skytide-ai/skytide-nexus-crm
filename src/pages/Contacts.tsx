@@ -6,12 +6,13 @@ import { Badge } from '@/components/ui/badge';
 import { ContactTags } from '@/components/contacts/ContactTags';
 import { TagsFilter } from '@/components/contacts/TagsFilter';
 import { useContactsByTags } from '@/hooks/useContactsByTags';
-import { Plus, Search, Users, Phone, Mail, MapPin, Calendar, Eye, Edit, Trash2 } from 'lucide-react';
 import { useContacts } from '@/hooks/useContacts';
 import { ContactDialog } from '@/components/contacts/ContactDialog';
+import { ContactDetailDialog } from '@/components/contacts/ContactDetailDialog';
 import { DeleteContactDialog } from '@/components/contacts/DeleteContactDialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { Contact } from '@/types/contact';
+import { Plus, Search, Users, Phone, Mail, MapPin, Calendar, Eye, Edit, Trash2 } from 'lucide-react';
 
 export default function Contacts() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -233,7 +234,7 @@ export default function Contacts() {
       />
 
       {selectedContact && (
-        <ContactDialog
+        <ContactDetailDialog
           contact={selectedContact}
           open={!!selectedContact}
           onOpenChange={(open) => !open && setSelectedContact(null)}

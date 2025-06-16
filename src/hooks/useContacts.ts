@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -251,6 +250,101 @@ export function useContactFiles(contactId: string) {
       return data as ContactFile[];
     },
     enabled: !!contactId,
+  });
+}
+
+export function useUploadContactFile() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ contactId, file, fileName }: { contactId: string; file: File; fileName: string }) => {
+      const user = (await supabase.auth.getUser()).data.user;
+      if (!user) {
+        throw new Error('Usuario no autenticado');
+      }
+
+      // Subir archivo a Supabase Storage
+      const fileExt = file.name.split('.').pop();
+      const filePath = `contact-files/${contactId}/${Date.now()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('contact-files')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        throw new Error(`Error al subir archivo: ${uploadError.message}`);
+      }
+
+      // Guardar referencia en la base de datos
+      const { data, error } = await supabase
+        .from('contact_files')
+        .insert({
+          contact_id: contactId,
+          file_name: fileName,
+          file_path: filePath,
+          file_size: file.size,
+          mime_type: file.type,
+          created_by: user.id,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        // Si falla la inserción en BD, eliminar el archivo subido
+        await supabase.storage.from('contact-files').remove([filePath]);
+        throw new Error(error.message);
+      }
+
+      return data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['contact-files', variables.contactId] });
+    },
+  });
+}
+
+export function useDeleteContactFile() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (fileId: string) => {
+      // Obtener información del archivo antes de eliminarlo
+      const { data: fileData, error: fetchError } = await supabase
+        .from('contact_files')
+        .select('file_path, contact_id')
+        .eq('id', fileId)
+        .single();
+
+      if (fetchError) {
+        throw new Error(fetchError.message);
+      }
+
+      // Eliminar archivo del storage
+      const { error: storageError } = await supabase.storage
+        .from('contact-files')
+        .remove([fileData.file_path]);
+
+      if (storageError) {
+        console.warn('Error al eliminar archivo del storage:', storageError.message);
+      }
+
+      // Eliminar referencia de la base de datos
+      const { error } = await supabase
+        .from('contact_files')
+        .delete()
+        .eq('id', fileId);
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      return { fileId, contactId: fileData.contact_id };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['contact-files', data.contactId] });
+    },
   });
 }
 
