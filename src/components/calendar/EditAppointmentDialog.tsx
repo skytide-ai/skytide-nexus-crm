@@ -21,7 +21,16 @@ interface EditAppointmentDialogProps {
 
 export function EditAppointmentDialog({ open, onOpenChange, appointment }: EditAppointmentDialogProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [formData, setFormData] = useState<Partial<AppointmentWithDetails>>({});
+  const [formData, setFormData] = useState<Partial<AppointmentWithDetails>>({
+    contact_id: '',
+    member_id: '',
+    service_id: '',
+    appointment_date: '',
+    start_time: '',
+    end_time: '',
+    notes: '',
+    status: 'programada'
+  });
 
   const { members } = useMembers();
   const { data: services = [] } = useServices();
@@ -148,7 +157,7 @@ export function EditAppointmentDialog({ open, onOpenChange, appointment }: EditA
             <Input
               id="appointment_date"
               type="date"
-              value={formData.appointment_date}
+              value={formData.appointment_date || ''}
               onChange={(e) => setFormData(prev => ({ ...prev, appointment_date: e.target.value }))}
               required
             />
@@ -157,7 +166,7 @@ export function EditAppointmentDialog({ open, onOpenChange, appointment }: EditA
           <div>
             <Label htmlFor="member_id">Profesional</Label>
             <Select
-              value={formData.member_id}
+              value={formData.member_id || ''}
               onValueChange={(value) => setFormData(prev => ({ ...prev, member_id: value }))}
             >
               <SelectTrigger>
@@ -178,7 +187,7 @@ export function EditAppointmentDialog({ open, onOpenChange, appointment }: EditA
           <div>
             <Label htmlFor="service_id">Servicio</Label>
             <Select
-              value={formData.service_id}
+              value={formData.service_id || ''}
               onValueChange={(value) => setFormData(prev => ({ ...prev, service_id: value }))}
             >
               <SelectTrigger>
@@ -204,7 +213,7 @@ export function EditAppointmentDialog({ open, onOpenChange, appointment }: EditA
             <Input
               id="start_time"
               type="time"
-              value={formData.start_time}
+              value={formData.start_time || ''}
               onChange={(e) => setFormData(prev => ({ ...prev, start_time: e.target.value }))}
               required
             />
@@ -218,7 +227,7 @@ export function EditAppointmentDialog({ open, onOpenChange, appointment }: EditA
           <div>
             <Label>Contacto</Label>
             <Select
-              value={formData.contact_id}
+              value={formData.contact_id || ''}
               onValueChange={(value) => setFormData(prev => ({ ...prev, contact_id: value }))}
               required
             >
@@ -240,7 +249,7 @@ export function EditAppointmentDialog({ open, onOpenChange, appointment }: EditA
             <div className="flex gap-2">
               <div className="flex-1">
                 <Select
-                  value={formData.status}
+                  value={formData.status || 'programada'}
                   onValueChange={(value: any) => setFormData(prev => ({ ...prev, status: value }))}
                   required
                 >
