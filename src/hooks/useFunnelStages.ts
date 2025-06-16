@@ -45,7 +45,7 @@ export function useFunnelStages(funnelId?: string) {
         .eq('funnel_id', funnelId)
         .order('position', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       const nextPosition = lastStage ? lastStage.position + 1 : 0;
 
@@ -141,22 +141,21 @@ export function useFunnelStages(funnelId?: string) {
 
   const updateStagePositions = useMutation({
     mutationFn: async (updates: UpdateFunnelStagePosition[]) => {
-      const { error } = await supabase
-        .from('funnel_stages')
-        .upsert(
-          updates.map(({ id, position }) => ({
-            id,
-            position,
-          }))
-        );
+      // Actualizar cada etapa individualmente
+      for (const update of updates) {
+        const { error } = await supabase
+          .from('funnel_stages')
+          .update({ position: update.position })
+          .eq('id', update.id);
 
-      if (error) {
-        toast({
-          title: 'Error',
-          description: 'No se pudieron actualizar las posiciones',
-          variant: 'destructive',
-        });
-        throw error;
+        if (error) {
+          toast({
+            title: 'Error',
+            description: 'No se pudieron actualizar las posiciones',
+            variant: 'destructive',
+          });
+          throw error;
+        }
       }
 
       return updates;
