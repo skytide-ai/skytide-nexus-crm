@@ -12,19 +12,63 @@ export function useChatConversations() {
     queryFn: async () => {
       if (!organization?.id) return [];
 
-      const { data: identities, error } = await supabase
+      // Primero obtenemos las identidades de chat
+      const { data: identities, error: identitiesError } = await supabase
         .from('chat_identities')
         .select(`
           *,
-          contact:contacts (id, first_name, last_name, email, phone, country_code),
-          latest_message:chat_messages (id, message, media_type, timestamp)
+          contact:contacts (id, first_name, last_name, email, phone, country_code)
         `)
         .eq('organization_id', organization.id)
-        .order('last_seen', { ascending: false })
-        .limit(1, { foreignTable: 'latest_message' });
+        .order('last_seen', { ascending: false });
 
-      if (error) throw error;
-      return identities as ChatConversation[];
+      if (identitiesError) {
+        console.error('Error fetching chat identities:', identitiesError);
+        throw identitiesError;
+      }
+
+      if (!identities || identities.length === 0) return [];
+
+      // Luego obtenemos los últimos mensajes para cada identidad
+      const result: ChatConversation[] = [];
+      
+      for (const identity of identities) {
+        // Obtenemos el último mensaje para esta identidad
+        const { data: messages, error: messagesError } = await supabase
+          .from('chat_messages')
+          .select('*')
+          .eq('chat_identity_id', identity.id)
+          .order('timestamp', { ascending: false })
+          .limit(1);
+          
+        if (messagesError) {
+          console.error(`Error fetching messages for chat ${identity.id}:`, messagesError);
+          // Continuamos con la siguiente identidad
+          result.push({
+            ...identity,
+            latest_message: undefined,
+            unread_count: 0
+          });
+          continue;
+        }
+        
+        // Obtenemos el conteo de mensajes no leídos basados en last_seen
+        const { count: unreadCount } = await supabase
+          .from('chat_messages')
+          .select('*', { count: 'exact', head: true })
+          .eq('chat_identity_id', identity.id)
+          .eq('direction', 'incoming')
+          .gt('timestamp', identity.last_seen);
+        
+        // Añadimos esta conversación al resultado
+        result.push({
+          ...identity,
+          latest_message: messages && messages.length > 0 ? messages[0] : undefined,
+          unread_count: unreadCount || 0
+        });
+      }
+      
+      return result;
     },
     enabled: !!organization?.id
   });
@@ -74,25 +118,7 @@ export function useSendMessage() {
 
       if (identityError) throw identityError;
 
-      // First insert the message in our database
-      const { data: chatMessage, error: insertError } = await supabase
-        .from('chat_messages')
-        .insert({
-          chat_identity_id: chatIdentityId,
-          direction: 'outgoing',
-          message,
-          media_type: mediaType,
-          media_url: mediaUrl,
-          media_mime_type: mediaMimeType,
-          sent_by: (await supabase.auth.getUser()).data.user?.id,
-          received_via: identity.platform
-        })
-        .select()
-        .single();
-
-      if (insertError) throw insertError;
-
-      // Then send to external webhook
+      // Primero verificamos si hay un webhook configurado
       const { data: webhook, error: webhookError } = await supabase
         .from('organization_webhooks')
         .select('message_outgoing_webhook_url')
@@ -105,32 +131,65 @@ export function useSendMessage() {
           description: 'No se encontró un webhook configurado para este canal',
           variant: 'destructive'
         });
+        throw new Error('No se encontró un webhook configurado para este canal');
+      }
+      
+      // Verificamos que la URL del webhook exista
+      if (!webhook.message_outgoing_webhook_url) {
+        toast({
+          title: 'Error al enviar mensaje',
+          description: 'La URL del webhook no está configurada',
+          variant: 'destructive'
+        });
+        throw new Error('La URL del webhook no está configurada');
+      }
+
+      // Enviamos al webhook primero
+      try {
+        const response = await fetch(webhook.message_outgoing_webhook_url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            chat_identity_id: chatIdentityId,
+            message,
+            media_url: mediaUrl,
+            media_type: mediaType,
+            platform: identity.platform,
+            platform_user_id: identity.platform_user_id,
+            organization_id: identity.organization_id,
+            sent_by: (await supabase.auth.getUser()).data.user?.id
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Error al enviar mensaje: ${response.statusText}`);
+        }
+        
+        // Solo si el webhook fue exitoso, guardamos en la base de datos
+        const { data: chatMessage, error: insertError } = await supabase
+          .from('chat_messages')
+          .insert({
+            chat_identity_id: chatIdentityId,
+            direction: 'outgoing',
+            message,
+            media_type: mediaType,
+            media_url: mediaUrl,
+            media_mime_type: mediaMimeType,
+            sent_by: (await supabase.auth.getUser()).data.user?.id,
+            received_via: identity.platform
+          })
+          .select()
+          .single();
+
+        if (insertError) throw insertError;
+        
         return chatMessage;
+      } catch (error) {
+        console.error('Error al enviar mensaje al webhook:', error);
+        throw new Error(`Error al enviar mensaje: ${error instanceof Error ? error.message : 'Error desconocido'}`);
       }
-
-      // Send to webhook
-      const response = await fetch(webhook.message_outgoing_webhook_url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          chat_identity_id: chatIdentityId,
-          message,
-          media_url: mediaUrl,
-          media_type: mediaType,
-          platform: identity.platform,
-          platform_user_id: identity.platform_user_id,
-          organization_id: identity.organization_id,
-          sent_by: (await supabase.auth.getUser()).data.user?.id
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Error al enviar mensaje: ${response.statusText}`);
-      }
-
-      return chatMessage;
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ 

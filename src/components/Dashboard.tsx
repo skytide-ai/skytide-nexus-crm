@@ -1,20 +1,23 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { format, subMonths } from 'date-fns';
+import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { 
   CalendarIcon, Calendar, CheckCircle, Clock, Crown, DollarSign, TrendingUp, UserPlus, Loader2
 } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { useDashboardStats, useHistoricalStats } from '@/hooks/useDashboardStats';
+import { useDailyStats } from '@/hooks/useDailyStats';
 import { useState } from 'react';
 
 export function Dashboard() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedServiceId, setSelectedServiceId] = useState<string>("");
+  const [chartView, setChartView] = useState<"monthly" | "daily">("monthly");
   const { data: stats, isLoading: statsLoading } = useDashboardStats(selectedDate);
   const { data: historicalData, isLoading: historicalLoading } = useHistoricalStats(6);
+  const { data: dailyData, isLoading: dailyLoading } = useDailyStats(selectedDate);
   
   // Encontrar el servicio seleccionado
   const selectedService = selectedServiceId 
@@ -30,7 +33,7 @@ export function Dashboard() {
     }).format(value);
   };
 
-  if (statsLoading || historicalLoading) {
+  if (statsLoading || historicalLoading || dailyLoading) {
     return (
       <div className="h-[50vh] flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -58,7 +61,8 @@ export function Dashboard() {
           </SelectTrigger>
           <SelectContent>
             {Array.from({ length: 12 }, (_, i) => {
-              const date = subMonths(new Date(), i);
+              const date = new Date();
+              date.setMonth(date.getMonth() - i);
               return (
                 <SelectItem
                   key={format(date, 'yyyy-MM')}
@@ -152,14 +156,34 @@ export function Dashboard() {
           <div>
             <CardTitle className="text-xl font-semibold">Resumen Mensual</CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
-              Tendencias de los últimos 6 meses
+              {chartView === "monthly" 
+                ? "Tendencias de los últimos 6 meses" 
+                : `Datos diarios de ${format(selectedDate, 'MMMM yyyy', { locale: es })}`}
             </p>
+          </div>
+          <div className="flex space-x-2">
+            <Button
+              variant={chartView === "monthly" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setChartView("monthly")}
+              className="text-xs h-8"
+            >
+              Últimos 6 meses
+            </Button>
+            <Button
+              variant={chartView === "daily" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setChartView("daily")}
+              className="text-xs h-8"
+            >
+              Mes actual
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={350}>
             <AreaChart 
-              data={historicalData}
+              data={chartView === "monthly" ? historicalData : dailyData}
               margin={{ top: 20, right: 30, left: 0, bottom: 0 }}
             >
               <defs>
@@ -178,7 +202,7 @@ export function Dashboard() {
                 vertical={false}
               />
               <XAxis 
-                dataKey="name" 
+                dataKey={chartView === "monthly" ? "name" : "date"} 
                 stroke="#6b7280"
                 fontSize={12}
                 tickLine={false}
@@ -220,7 +244,13 @@ export function Dashboard() {
                   if (name === 'Facturación') return formatCurrency(value);
                   return `${value} ${name.toLowerCase()}`;
                 }}
-                labelFormatter={(label) => `${label} ${new Date().getFullYear()}`}
+                labelFormatter={(label) => {
+                  if (chartView === "monthly") {
+                    return `${label} ${new Date().getFullYear()}`;
+                  } else {
+                    return label;
+                  }
+                }}
               />
               <Legend 
                 verticalAlign="top" 
