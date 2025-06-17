@@ -85,9 +85,9 @@ export function useFunnelContacts(funnelId?: string) {
         .eq('stage_id', stageId)
         .order('position', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
-      if (lastPosError && lastPosError.code !== 'PGRST116') { // PGRST116: no rows found, lo cual es ok
+      if (lastPosError) {
          toast({
           title: 'Error',
           description: 'No se pudo determinar la posición para los nuevos contactos.',
