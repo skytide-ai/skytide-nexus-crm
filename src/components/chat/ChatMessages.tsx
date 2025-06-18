@@ -3,8 +3,8 @@ import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Paperclip, Send, Link, User, MessageSquare, Bot, ChevronDown } from 'lucide-react';
-import { useChatMessages, useSendMessage, useUpdateChatIdentity } from '@/hooks/useChat';
+import { Paperclip, Send, Link, User, MessageSquare, Bot, ChevronDown, X } from 'lucide-react';
+import { useChatMessages, useSendMessage, useUpdateChatIdentity, useUploadChatFile } from '@/hooks/useChat';
 import { ChatIdentity, ChatMessage, ChatPlatform } from '@/types/chat';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -29,11 +29,13 @@ interface MessageFormData {
 
 export function ChatMessages({ chatIdentity }: ChatMessagesProps) {
   const { data: messages, isLoading } = useChatMessages(chatIdentity?.id);
-  const { user } = useAuth();
+  const { user, organization } = useAuth();
   const { mutate: sendMessage } = useSendMessage();
   const { mutate: updateChatIdentity } = useUpdateChatIdentity();
+  const { mutate: uploadChatFile, isPending: isUploading } = useUploadChatFile();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const { register, handleSubmit, reset } = useForm<MessageFormData>();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { register, handleSubmit, reset, watch } = useForm<MessageFormData>();
   
   // Estado local para el switch del bot para respuesta inmediata
   const [botEnabled, setBotEnabled] = useState(chatIdentity?.bot_enabled || false);
@@ -42,6 +44,19 @@ export function ChatMessages({ chatIdentity }: ChatMessagesProps) {
   const [showBotWarning, setShowBotWarning] = useState(false);
   const [pendingMessage, setPendingMessage] = useState("");
   
+  // Estado para archivos cargados (pero no enviados aún)
+  const [uploadedFiles, setUploadedFiles] = useState<Array<{
+    id: string;
+    name: string;
+    mediaUrl: string;
+    mediaType: 'image' | 'audio' | 'video' | 'file';
+    mediaMimeType: string;
+    size: number;
+  }>>([]);
+  
+  // Observar el valor del mensaje para validar si hay contenido
+  const messageValue = watch('message');
+  
   // Actualizar el estado local cuando cambia chatIdentity
   useEffect(() => {
     if (chatIdentity) {
@@ -49,11 +64,55 @@ export function ChatMessages({ chatIdentity }: ChatMessagesProps) {
     }
   }, [chatIdentity?.bot_enabled]);
 
+  // Limpiar archivos cargados cuando cambia la conversación
   useEffect(() => {
+    setUploadedFiles([]);
+    reset();
+  }, [chatIdentity?.id, reset]);
+
+  // Función para hacer scroll al final
+  const scrollToBottom = () => {
     if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+      // El ScrollArea de shadcn/ui tiene un viewport interno
+      const viewport = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (viewport) {
+        console.log('📜 Haciendo scroll al final - viewport encontrado');
+        // Usar setTimeout para asegurar que el DOM se haya actualizado
+        setTimeout(() => {
+          viewport.scrollTop = viewport.scrollHeight;
+          console.log('📜 Scroll ejecutado:', viewport.scrollTop, '/', viewport.scrollHeight);
+        }, 150);
+      } else {
+        console.log('📜 Haciendo scroll al final - usando fallback');
+        // Fallback al método anterior si no encuentra el viewport
+        setTimeout(() => {
+          scrollAreaRef.current!.scrollTop = scrollAreaRef.current!.scrollHeight;
+          console.log('📜 Scroll fallback ejecutado');
+        }, 150);
+      }
+    } else {
+      console.log('📜 No se puede hacer scroll - ref no disponible');
     }
+  };
+
+  // Scroll al final cuando cambian los mensajes
+  useEffect(() => {
+    scrollToBottom();
   }, [messages]);
+
+  // Scroll al final cuando se cambia de conversación (después de cargar mensajes)
+  useEffect(() => {
+    if (chatIdentity?.id && messages) {
+      scrollToBottom();
+    }
+  }, [chatIdentity?.id, messages]);
+
+  // Scroll al final cuando terminan de cargar los mensajes
+  useEffect(() => {
+    if (!isLoading && messages && messages.length > 0) {
+      scrollToBottom();
+    }
+  }, [isLoading, messages]);
 
   // Actualiza last_seen cuando se abre la conversación o llegan nuevos mensajes
   useEffect(() => {
@@ -92,14 +151,36 @@ export function ChatMessages({ chatIdentity }: ChatMessagesProps) {
 
   // Función para enviar mensaje directamente
   const sendMessageDirectly = (message: string) => {
-    if (!chatIdentity?.id || !message.trim()) return;
+    if (!chatIdentity?.id) return;
     
-    sendMessage({
-      chatIdentityId: chatIdentity.id,
-      message: message.trim()
-    });
+    // Si hay archivos cargados, enviar con archivos
+    if (uploadedFiles.length > 0) {
+      uploadedFiles.forEach(file => {
+        sendMessage({
+          chatIdentityId: chatIdentity.id,
+          message: message.trim() || `📎 ${file.name}`,
+          mediaUrl: file.mediaUrl,
+          mediaType: file.mediaType,
+          mediaMimeType: file.mediaMimeType
+        });
+      });
+      // Limpiar archivos después del envío
+      setUploadedFiles([]);
+    } else {
+      // Enviar solo texto con media_type: "text"
+      sendMessage({
+        chatIdentityId: chatIdentity.id,
+        message: message.trim(),
+        mediaType: 'text' as any // Agregamos 'text' como tipo
+      });
+    }
     
     reset();
+    
+    // Hacer scroll al final después de enviar
+    setTimeout(() => {
+      scrollToBottom();
+    }, 200);
   };
   
   // Función para desactivar el bot y enviar mensaje
@@ -123,6 +204,9 @@ export function ChatMessages({ chatIdentity }: ChatMessagesProps) {
   
   // Función que se ejecuta al enviar el formulario
   const onSubmit = handleSubmit((data) => {
+    // Verificar que hay contenido para enviar (mensaje o archivos)
+    if (!data.message.trim() && uploadedFiles.length === 0) return;
+    
     // Si el bot está activado, mostrar advertencia
     if (botEnabled) {
       setPendingMessage(data.message.trim());
@@ -133,6 +217,70 @@ export function ChatMessages({ chatIdentity }: ChatMessagesProps) {
     // Si el bot está desactivado, enviar directamente
     sendMessageDirectly(data.message.trim());
   });
+
+  // Función para manejar la selección de archivos (solo cargar, no enviar)
+  const handleFileSelect = (files: FileList | null) => {
+    if (!files || !chatIdentity?.id || !organization?.id) return;
+    
+    Array.from(files).forEach(file => {
+      uploadFileOnly(file);
+    });
+  };
+
+  // Función para subir archivo sin enviarlo
+  const uploadFileOnly = async (file: File) => {
+    if (!chatIdentity?.id || !organization?.id) return;
+
+    try {
+      // Subir el archivo
+      const result = await new Promise<{
+        mediaUrl: string;
+        mediaType: 'image' | 'audio' | 'video' | 'file';
+        mediaMimeType: string;
+        fileName: string;
+      }>((resolve, reject) => {
+        uploadChatFile(
+          {
+            chatIdentityId: chatIdentity.id,
+            file,
+            organizationId: organization.id
+          },
+          {
+            onSuccess: (data) => resolve(data),
+            onError: (error) => reject(error)
+          }
+        );
+      });
+
+      // Agregar el archivo a la lista de archivos cargados
+      const newFile = {
+        id: Date.now().toString(),
+        name: result.fileName,
+        mediaUrl: result.mediaUrl,
+        mediaType: result.mediaType,
+        mediaMimeType: result.mediaMimeType,
+        size: file.size
+      };
+
+      setUploadedFiles(prev => [...prev, newFile]);
+
+    } catch (error) {
+      console.error('Error al subir archivo:', error);
+    }
+  };
+
+  // Función para remover un archivo cargado
+  const removeUploadedFile = (fileId: string) => {
+    setUploadedFiles(prev => prev.filter(f => f.id !== fileId));
+  };
+
+  // Función para formatear el tamaño del archivo
+  const formatFileSize = (bytes: number) => {
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    if (bytes === 0) return '0 Bytes';
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+  };
 
   // Función para obtener el color de la plataforma
   const getPlatformColor = (platform: ChatPlatform) => {
@@ -171,24 +319,24 @@ export function ChatMessages({ chatIdentity }: ChatMessagesProps) {
     : '';
 
   return (
-    <Card className="flex flex-col h-full border-border/40">
+    <Card className="flex flex-col h-full border-border/40 overflow-hidden">
       <div className="p-3 border-b bg-muted/30 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-3">
           <Avatar
             className={`h-10 w-10 border-2 flex items-center justify-center rounded-full ${
               showInitials 
-                ? `${getPlatformBorderColor(chatIdentity.platform)} text-white` // For Initials: Platform Border, White Text
-                : `bg-gray-100 ${getPlatformBorderColor(chatIdentity.platform)}` // For Icon: Light Gray BG, Platform Border
+                ? `${getPlatformBorderColor(chatIdentity.platform)} text-white`
+                : `bg-gray-100 ${getPlatformBorderColor(chatIdentity.platform)}`
             }`}
           >
             {showInitials ? (
               <AvatarFallback
-                className={`flex items-center justify-center w-full h-full rounded-full ${getPlatformColor(chatIdentity.platform)}`} // Platform BG for Initials
+                className={`flex items-center justify-center w-full h-full rounded-full ${getPlatformColor(chatIdentity.platform)}`}
               >
                 {initials}
               </AvatarFallback>
             ) : (
-              <User className="h-6 w-6 text-gray-600" /> // Dark Gray Icon
+              <User className="h-6 w-6 text-gray-600" />
             )}
           </Avatar>
           
@@ -217,7 +365,6 @@ export function ChatMessages({ chatIdentity }: ChatMessagesProps) {
               chatIdentityId={chatIdentity.id}
               platformUserId={chatIdentity.platform_user_id}
               onLinked={() => {
-                // Forzar recarga de datos después de vincular
                 window.location.reload();
               }}
             />
@@ -231,10 +378,7 @@ export function ChatMessages({ chatIdentity }: ChatMessagesProps) {
                     <Switch
                       checked={botEnabled}
                       onCheckedChange={(checked) => {
-                        // Actualizar estado local inmediatamente para UI responsiva
                         setBotEnabled(checked);
-                        
-                        // Luego actualizar en la base de datos
                         updateChatIdentity({
                           chatIdentityId: chatIdentity.id,
                           data: { bot_enabled: checked }
@@ -256,7 +400,7 @@ export function ChatMessages({ chatIdentity }: ChatMessagesProps) {
         </div>
       </div>
 
-      <ScrollArea className="flex-1 overflow-auto" ref={scrollAreaRef}>
+      <ScrollArea className="flex-1" ref={scrollAreaRef}>
         <div className="p-4 space-y-4">
           {messages && messages.length > 0 ? (
             messages.map((message) => (
@@ -281,47 +425,141 @@ export function ChatMessages({ chatIdentity }: ChatMessagesProps) {
         </div>
       </ScrollArea>
 
-      <div className="p-3 border-t bg-muted/30 flex-shrink-0">
-        <form onSubmit={onSubmit} className="flex items-center gap-2 bg-background rounded-lg p-1 pl-3 border shadow-sm">
-          <Input
-            {...register('message')}
-            placeholder="Escribe un mensaje..."
-            className="flex-1 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent"
-          />
-          
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
+      {/* Archivos cargados */}
+      {uploadedFiles.length > 0 && (
+        <div className="p-4 space-y-3 border-b bg-gradient-to-r from-blue-50/50 to-indigo-50/50">
+          <div className="flex items-center gap-2 text-sm font-medium text-blue-700">
+            <Paperclip className="h-4 w-4" />
+            Archivos listos para enviar ({uploadedFiles.length})
+          </div>
+          <div className="space-y-2">
+            {uploadedFiles.map((file) => (
+              <div 
+                key={file.id}
+                className="flex items-center gap-3 p-3 bg-white rounded-xl border border-blue-200/60 shadow-sm hover:shadow-md transition-all duration-200 group"
+              >
+                <div className="flex-shrink-0">
+                  {file.mediaType === 'image' ? (
+                    <div className="relative">
+                      <img 
+                        src={file.mediaUrl} 
+                        alt={file.name}
+                        className="w-12 h-12 object-cover rounded-lg border-2 border-white shadow-sm"
+                      />
+                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
+                    </div>
+                  ) : (
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-sm">
+                      <Paperclip className="h-5 w-5 text-white" />
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-gray-900 truncate">{file.name}</div>
+                  <div className="text-xs text-gray-500 flex items-center gap-2">
+                    <span>{formatFileSize(file.size)}</span>
+                    <span>•</span>
+                    <span className="capitalize">{file.mediaType}</span>
+                  </div>
+                </div>
                 <Button
                   type="button"
                   variant="ghost"
-                  size="icon"
-                  className="shrink-0 text-muted-foreground hover:text-foreground"
-                  disabled
+                  size="sm"
+                  onClick={() => removeUploadedFile(file.id)}
+                  className="flex-shrink-0 h-8 w-8 p-0 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all duration-200 opacity-0 group-hover:opacity-100"
                 >
-                  <Paperclip className="h-5 w-5" />
+                  <X className="h-4 w-4" />
                 </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top">
-                <p>Adjuntar archivo</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
-          <Button 
-            type="submit" 
-            size="icon" 
-            className="shrink-0 rounded-full h-9 w-9"
-          >
-            <Send className="h-4 w-4" />
-          </Button>
+      {/* Formulario de envío mejorado */}
+      <div className="p-4 bg-gradient-to-r from-gray-50/50 to-white">
+        <form onSubmit={onSubmit}>
+          {/* Línea principal con todos los controles */}
+          <div className="flex items-center gap-3 bg-white border border-gray-200 rounded-2xl p-2 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-400 transition-all duration-200">
+            {/* Botón de adjuntar archivo */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-10 w-10 rounded-full text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 flex-shrink-0"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploading}
+                  >
+                    {isUploading ? (
+                      <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      <Paperclip className="h-5 w-5" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="bg-gray-900 text-white">
+                  <p>{isUploading ? 'Subiendo archivo...' : 'Adjuntar archivo'}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            {/* Área de texto expandible */}
+            <div className="flex-1 relative">
+              <textarea
+                {...register('message')}
+                placeholder={uploadedFiles.length > 0 ? "Añade un mensaje (opcional)..." : "Escribe tu mensaje..."}
+                className="w-full min-h-[40px] max-h-32 px-3 py-2 text-sm bg-transparent border-0 resize-none focus:outline-none placeholder:text-gray-400"
+                rows={1}
+                onInput={(e) => {
+                  const target = e.target as HTMLTextAreaElement;
+                  target.style.height = 'auto';
+                  target.style.height = Math.min(target.scrollHeight, 128) + 'px';
+                }}
+              />
+              
+              {/* Contador de caracteres */}
+              {messageValue && messageValue.length > 0 && (
+                <div className="absolute bottom-1 right-1 text-xs text-gray-400">
+                  {messageValue.length}
+                </div>
+              )}
+            </div>
+
+            {/* Botón de enviar */}
+            <Button 
+              type="submit" 
+              size="sm"
+              className="h-10 px-4 rounded-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 flex-shrink-0"
+              disabled={!messageValue?.trim() && uploadedFiles.length === 0}
+            >
+              <Send className="h-4 w-4" />
+              <span className="font-medium hidden sm:inline">Enviar</span>
+            </Button>
+          </div>
         </form>
       </div>
+
+      {/* Input de archivos oculto */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        className="hidden"
+        onChange={(e) => handleFileSelect(e.target.files)}
+        accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,.zip,.rar"
+        multiple
+      />
       
       {/* Modal de advertencia de bot activo */}
       <BotWarningDialog 
         isOpen={showBotWarning}
-        onClose={() => setShowBotWarning(false)}
+        onClose={() => {
+          setShowBotWarning(false);
+          setPendingMessage("");
+        }}
         onDisableAndSend={disableBotAndSend}
       />
     </Card>

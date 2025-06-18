@@ -11,6 +11,7 @@ import { useDashboardStats, useHistoricalStats } from '@/hooks/useDashboardStats
 import { useDailyStats } from '@/hooks/useDailyStats';
 import { useState } from 'react';
 
+
 export function Dashboard() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedServiceId, setSelectedServiceId] = useState<string>("");

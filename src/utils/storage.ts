@@ -41,3 +41,10 @@ export const ensureStorageBucket = async (bucketName: string): Promise<boolean> 
     return false;
   }
 };
+
+/**
+ * Asegura que el bucket 'chat-media' exista para el almacenamiento de archivos de chat
+ */
+export const ensureChatMediaBucket = async (): Promise<boolean> => {
+  return ensureStorageBucket('chat-media');
+};

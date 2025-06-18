@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { ChatIdentity, ChatMessage, ChatConversation } from '@/types/chat';
 import { useAuth } from '@/contexts/AuthContext';
-import { toast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 export function useChatConversations() {
   const { organization } = useAuth();
@@ -95,6 +95,7 @@ export function useChatMessages(chatIdentityId?: string) {
 
 export function useSendMessage() {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   return useMutation({
     mutationFn: async ({ 
@@ -107,7 +108,7 @@ export function useSendMessage() {
       chatIdentityId: string;
       message?: string;
       mediaUrl?: string;
-      mediaType?: 'image' | 'audio' | 'video' | 'file';
+      mediaType?: 'image' | 'audio' | 'video' | 'file' | 'text';
       mediaMimeType?: string;
     }) => {
       const { data: identity, error: identityError } = await supabase
@@ -118,7 +119,7 @@ export function useSendMessage() {
 
       if (identityError) throw identityError;
 
-      // Primero verificamos si hay un webhook configurado
+      // Verificamos si hay un webhook configurado
       const { data: webhook, error: webhookError } = await supabase
         .from('organization_webhooks')
         .select('message_outgoing_webhook_url')
@@ -133,7 +134,7 @@ export function useSendMessage() {
         });
         throw new Error('No se encontró un webhook configurado para este canal');
       }
-      
+
       // Verificamos que la URL del webhook exista
       if (!webhook.message_outgoing_webhook_url) {
         toast({
@@ -144,23 +145,30 @@ export function useSendMessage() {
         throw new Error('La URL del webhook no está configurada');
       }
 
-      // Enviamos al webhook primero
+      // Enviamos al webhook
       try {
+        // Preparar el payload - solo incluir media_url y media_type si no es texto
+        const payload: any = {
+          chat_identity_id: chatIdentityId,
+          message,
+          media_type: mediaType,
+          platform: identity.platform,
+          platform_user_id: identity.platform_user_id,
+          organization_id: identity.organization_id,
+          sent_by: (await supabase.auth.getUser()).data.user?.id
+        };
+
+        // Solo agregar media_url si hay un archivo (no para texto)
+        if (mediaType !== 'text' && mediaUrl) {
+          payload.media_url = mediaUrl;
+        }
+
         const response = await fetch(webhook.message_outgoing_webhook_url, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({
-            chat_identity_id: chatIdentityId,
-            message,
-            media_url: mediaUrl,
-            media_type: mediaType,
-            platform: identity.platform,
-            platform_user_id: identity.platform_user_id,
-            organization_id: identity.organization_id,
-            sent_by: (await supabase.auth.getUser()).data.user?.id
-          })
+          body: JSON.stringify(payload)
         });
 
         if (!response.ok) {
@@ -168,15 +176,18 @@ export function useSendMessage() {
         }
         
         // Solo si el webhook fue exitoso, guardamos en la base de datos
+        // Para la BD, convertir 'text' a null para media_type
+        const dbMediaType = mediaType === 'text' ? null : mediaType;
+        
         const { data: chatMessage, error: insertError } = await supabase
           .from('chat_messages')
           .insert({
             chat_identity_id: chatIdentityId,
             direction: 'outgoing',
             message,
-            media_type: mediaType,
-            media_url: mediaUrl,
-            media_mime_type: mediaMimeType,
+            media_type: dbMediaType,
+            media_url: mediaType === 'text' ? null : mediaUrl,
+            media_mime_type: mediaType === 'text' ? null : mediaMimeType,
             sent_by: (await supabase.auth.getUser()).data.user?.id,
             received_via: identity.platform
           })
@@ -211,6 +222,7 @@ export function useSendMessage() {
 
 export function useUpdateChatIdentity() {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   return useMutation({
     mutationFn: async ({
@@ -239,6 +251,103 @@ export function useUpdateChatIdentity() {
       toast({
         title: 'Error al actualizar chat',
         description: error.message,
+        variant: 'destructive'
+      });
+    }
+  });
+}
+
+export function useUploadChatFile() {
+  const { mutate: sendMessage } = useSendMessage();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ 
+      chatIdentityId, 
+      file, 
+      organizationId 
+    }: {
+      chatIdentityId: string;
+      file: File;
+      organizationId: string;
+    }) => {
+      // Validar tamaño y tipo de archivo
+      const maxSizeInBytes = 50 * 1024 * 1024; // 50MB (límite configurado en Supabase)
+      
+      if (file.size > maxSizeInBytes) {
+        throw new Error(`El archivo es demasiado grande. El tamaño máximo permitido es 50MB.`);
+      }
+
+      // Determinar el tipo de media basado en el MIME type
+      let mediaType: 'image' | 'audio' | 'video' | 'file' = 'file';
+      
+      if (file.type.startsWith('image/')) {
+        mediaType = 'image';
+      } else if (file.type.startsWith('video/')) {
+        mediaType = 'video';
+      } else if (file.type.startsWith('audio/')) {
+        mediaType = 'audio';
+      }
+
+      // Crear un nombre de archivo único
+      const fileExt = file.name.split('.').pop();
+      const timestamp = Date.now();
+      const fileName = `${timestamp}.${fileExt}`;
+      
+      // Crear la ruta del archivo: organization_id/chat_identity_id/filename
+      const filePath = `${organizationId}/${chatIdentityId}/${fileName}`;
+      
+      console.log('📁 Subiendo archivo de chat:', { 
+        fileName: file.name,
+        filePath, 
+        mediaType, 
+        mimeType: file.type,
+        size: file.size 
+      });
+
+      // Subir el archivo a Supabase Storage en el bucket 'chat-media'
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('chat-media')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false // No sobrescribir archivos existentes
+        });
+
+      if (uploadError) {
+        console.error('❌ Error al subir archivo de chat:', uploadError);
+        throw new Error(`Error al subir archivo: ${uploadError.message}`);
+      }
+
+      if (!uploadData) {
+        throw new Error('No se pudo obtener información del archivo subido');
+      }
+
+      console.log('✅ Archivo de chat subido correctamente:', uploadData.path);
+
+      // Obtener la URL pública del archivo
+      const { data } = supabase.storage
+        .from('chat-media')
+        .getPublicUrl(filePath);
+
+      if (!data || !data.publicUrl) {
+        throw new Error('No se pudo obtener la URL pública del archivo');
+      }
+
+      console.log('🔗 URL pública obtenida:', data.publicUrl);
+
+      // Retornar información del archivo para enviar el mensaje
+      return {
+        mediaUrl: data.publicUrl,
+        mediaType,
+        mediaMimeType: file.type,
+        fileName: file.name
+      };
+    },
+    onError: (error) => {
+      console.error('❌ Error al subir archivo de chat:', error);
+      toast({
+        title: 'Error al subir archivo',
+        description: error.message || 'No se pudo subir el archivo',
         variant: 'destructive'
       });
     }
