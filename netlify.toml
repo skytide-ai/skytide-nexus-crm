@@ -1,0 +1,27 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# Configuración de función programada
+[functions."email-notifications"]
+  schedule = "* * * * *"
+
+# Variables de entorno para build
+[build.environment]
+  NODE_VERSION = "18"
+
+# Redirects para SPA (reemplaza vercel.json)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Redirect para funciones API
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200 
