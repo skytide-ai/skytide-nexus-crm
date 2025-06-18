@@ -194,13 +194,13 @@ async function processOrganizationNotifications(organizationId, organizationName
 async function getOrganizationMembers(organizationId) {
   const { data: members, error } = await supabase
     .from('profiles')
-    .select('id, email, first_name, last_name')
+    .select('id, first_name, last_name, email')
     .eq('organization_id', organizationId)
-    .eq('role', 'member')
+    .eq('is_active', true)
     .not('email', 'is', null);
 
   if (error) {
-    console.error('❌ Error obteniendo miembros:', error);
+    console.error('❌ Error al obtener miembros:', error);
     return [];
   }
 
@@ -389,41 +389,53 @@ function generateEmailTemplate(memberName, appointments, organizationName) {
       <!-- Summary Stats -->
       <div style="margin-bottom: 32px;">
         <div style="background: white; padding: 24px; border-radius: 8px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-          <div style="font-size: 48px; font-weight: 700; color: #3b82f6; margin-bottom: 8px;">${appointments.length}</div>
-          <div style="color: #6b7280; font-size: 18px;">Cita${appointments.length > 1 ? 's' : ''} programada${appointments.length > 1 ? 's' : ''}</div>
+          <div style="font-size: 32px; font-weight: 700; color: #3b82f6; margin-bottom: 4px;">${appointments.length}</div>
+          <div style="color: #6b7280; font-size: 14px; font-weight: 500;">Citas programadas para mañana</div>
         </div>
       </div>
 
       <!-- Appointments Table -->
       <div style="background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 32px;">
         <div style="background: #f8fafc; padding: 16px; border-bottom: 1px solid #e5e7eb;">
-          <h3 style="margin: 0; color: #1f2937; font-size: 18px; font-weight: 600;">📅 Detalle de citas</h3>
+          <h3 style="margin: 0; color: #1f2937; font-size: 18px; font-weight: 600;">📅 Agenda del día</h3>
         </div>
-        
-        <table style="width: 100%; border-collapse: collapse;">
-          <thead>
-            <tr style="background: #f8fafc;">
-              <th style="padding: 16px 8px; text-align: left; font-weight: 600; color: #374151; border-bottom: 1px solid #e5e7eb;">Horario</th>
-              <th style="padding: 16px 8px; text-align: left; font-weight: 600; color: #374151; border-bottom: 1px solid #e5e7eb;">Cliente</th>
-              <th style="padding: 16px 8px; text-align: left; font-weight: 600; color: #374151; border-bottom: 1px solid #e5e7eb;">Servicio</th>
-              <th style="padding: 16px 8px; text-align: left; font-weight: 600; color: #374151; border-bottom: 1px solid #e5e7eb;">Teléfono</th>
-              <th style="padding: 16px 8px; text-align: left; font-weight: 600; color: #374151; border-bottom: 1px solid #e5e7eb;">Estado</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${appointmentRows}
-          </tbody>
-        </table>
+        <div style="overflow-x: auto;">
+          <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr style="background: #f8fafc;">
+                <th style="padding: 12px 8px; text-align: left; font-weight: 600; color: #374151; font-size: 14px;">Horario</th>
+                <th style="padding: 12px 8px; text-align: left; font-weight: 600; color: #374151; font-size: 14px;">Cliente</th>
+                <th style="padding: 12px 8px; text-align: left; font-weight: 600; color: #374151; font-size: 14px;">Servicio</th>
+                <th style="padding: 12px 8px; text-align: left; font-weight: 600; color: #374151; font-size: 14px;">Teléfono</th>
+                <th style="padding: 12px 8px; text-align: left; font-weight: 600; color: #374151; font-size: 14px;">Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${appointmentRows}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tips Section -->
+      <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 20px; margin-bottom: 32px;">
+        <h4 style="color: #92400e; margin: 0 0 12px 0; font-size: 16px; font-weight: 600;">💡 Consejos para el día</h4>
+        <ul style="color: #92400e; margin: 0; padding-left: 20px; font-size: 14px;">
+          <li>Revisa los datos de tus clientes antes de cada cita</li>
+          <li>Prepara los materiales necesarios para cada servicio</li>
+          <li>Mantén un margen de tiempo entre citas para imprevistos</li>
+        </ul>
       </div>
 
       <!-- Footer -->
-      <div style="background: white; padding: 24px; border-radius: 8px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-        <p style="color: #6b7280; margin: 0 0 16px 0; font-size: 14px;">
-          Este es un recordatorio automático enviado por ${organizationName}
+      <div style="text-align: center; padding: 24px; background: #f8fafc; border-radius: 8px; margin-top: 32px;">
+        <p style="color: #6b7280; margin: 0 0 8px 0; font-size: 14px;">
+          Este email fue enviado automáticamente por SkytideCRM
         </p>
-        <p style="color: #9ca3af; margin: 0; font-size: 12px;">
-          Powered by Skytide CRM • Enviado desde Netlify Functions
+        <p style="color: #9ca3af; margin: 0 0 16px 0; font-size: 12px;">
+          Si tienes alguna pregunta, contacta al administrador del sistema
         </p>
+        <img src="https://fyyzaysmpephomhmudxt.supabase.co/storage/v1/object/public/skytide-media/LogoSkytide.png" alt="Skytide" style="height: 32px; width: auto; opacity: 0.7;">
       </div>
 
     </body>
@@ -455,9 +467,9 @@ function generateNoAppointmentsTemplate(memberName, organizationName) {
     <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #f9fafb;">
       
       <!-- Header -->
-      <div style="background: linear-gradient(135deg, #10b981, #059669); padding: 32px; border-radius: 12px; text-align: center; margin-bottom: 32px;">
+      <div style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); padding: 32px; border-radius: 12px; text-align: center; margin-bottom: 32px;">
         <h1 style="color: white; margin: 0; font-size: 28px; font-weight: 700;">${organizationName}</h1>
-        <p style="color: #d1fae5; margin: 8px 0 0 0; font-size: 16px;">Resumen diario</p>
+        <p style="color: #e0e7ff; margin: 8px 0 0 0; font-size: 16px;">Resumen diario de agenda</p>
       </div>
 
       <!-- Greeting -->
@@ -468,35 +480,35 @@ function generateNoAppointmentsTemplate(memberName, organizationName) {
         </p>
       </div>
 
-      <!-- No Appointments -->
-      <div style="background: white; padding: 32px; border-radius: 8px; text-align: center; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-        <div style="font-size: 64px; margin-bottom: 16px;">🌟</div>
-        <h3 style="color: #10b981; margin: 0 0 16px 0; font-size: 24px; font-weight: 600;">¡Día libre!</h3>
-        <p style="color: #6b7280; margin: 0; font-size: 16px;">
-          No tienes citas programadas para mañana. Es un buen momento para:
+      <!-- No Appointments Message -->
+      <div style="background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 8px; padding: 24px; margin-bottom: 32px; text-align: center;">
+        <div style="font-size: 48px; margin-bottom: 16px;">😌</div>
+        <h3 style="color: #0c4a6e; margin: 0 0 12px 0; font-size: 20px; font-weight: 600;">¡Día libre!</h3>
+        <p style="color: #0369a1; margin: 0; font-size: 16px;">
+          No tienes citas agendadas para el día de mañana. Aprovecha este tiempo para descansar o realizar otras actividades.
         </p>
       </div>
 
-      <!-- Suggestions -->
-      <div style="background: white; padding: 24px; border-radius: 8px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-        <h4 style="color: #1f2937; margin: 0 0 16px 0; font-size: 18px; font-weight: 600;">💡 Sugerencias para tu día libre:</h4>
-        <ul style="color: #4b5563; margin: 0; padding-left: 20px;">
-          <li style="margin-bottom: 8px;">📚 Actualizar conocimientos o capacitarte</li>
-          <li style="margin-bottom: 8px;">📞 Contactar clientes potenciales</li>
-          <li style="margin-bottom: 8px;">🔧 Organizar tu espacio de trabajo</li>
-          <li style="margin-bottom: 8px;">📊 Revisar métricas y objetivos</li>
-          <li style="margin-bottom: 8px;">🤝 Planificar estrategias de seguimiento</li>
+      <!-- Tips Section -->
+      <div style="background: #f0fdf4; border: 1px solid #22c55e; border-radius: 8px; padding: 20px; margin-bottom: 32px;">
+        <h4 style="color: #166534; margin: 0 0 12px 0; font-size: 16px; font-weight: 600;">💡 Aprovecha tu día libre</h4>
+        <ul style="color: #166534; margin: 0; padding-left: 20px; font-size: 14px;">
+          <li>Revisa tu agenda de los próximos días</li>
+          <li>Organiza tu espacio de trabajo</li>
+          <li>Actualiza tus conocimientos profesionales</li>
+          <li>Disfruta de un merecido descanso</li>
         </ul>
       </div>
 
       <!-- Footer -->
-      <div style="background: white; padding: 24px; border-radius: 8px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-        <p style="color: #6b7280; margin: 0 0 16px 0; font-size: 14px;">
-          Recordatorio automático de ${organizationName}
+      <div style="text-align: center; padding: 24px; background: #f8fafc; border-radius: 8px; margin-top: 32px;">
+        <p style="color: #6b7280; margin: 0 0 8px 0; font-size: 14px;">
+          Este email fue enviado automáticamente por SkytideCRM
         </p>
-        <p style="color: #9ca3af; margin: 0; font-size: 12px;">
-          Powered by Skytide CRM • Enviado desde Netlify Functions
+        <p style="color: #9ca3af; margin: 0 0 16px 0; font-size: 12px;">
+          Si tienes alguna pregunta, contacta al administrador del sistema
         </p>
+        <img src="https://fyyzaysmpephomhmudxt.supabase.co/storage/v1/object/public/skytide-media/LogoSkytide.png" alt="Skytide" style="height: 32px; width: auto; opacity: 0.7;">
       </div>
 
     </body>
